@@ -1,0 +1,2 @@
+patient_id	tumor_bam	tumor_bai	normal_bam	normal_bai	sex	tumor_phenotype	purity	ploidy
+TOY_PAIR	/path/to/tumor.bam	/path/to/tumor.bam.bai	/path/to/normal.bam	/path/to/normal.bam.bai				

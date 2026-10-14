@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##contig=<ID=chr1,length=249250621>
+##contig=<ID=chr2,length=243199373>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SV type">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">
+##INFO=<ID=MATEID,Number=1,Type=String,Description="Mate ID">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr1	10000000	toy_del	N	<DEL>	100	PASS	SVTYPE=DEL;END=10020000;SVLEN=-20000
+chr1	20000000	toy_dup	N	<DUP>	100	PASS	SVTYPE=DUP;END=20030000;SVLEN=30000
+chr1	30000000	toy_bnd_a	N	N[chr2:30000000[	100	PASS	SVTYPE=BND;MATEID=toy_bnd_b
+chr2	30000000	toy_bnd_b	N	]chr1:30000000]N	100	PASS	SVTYPE=BND;MATEID=toy_bnd_a

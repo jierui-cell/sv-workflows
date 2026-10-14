@@ -1,0 +1,11 @@
+--- get_rg_cns.R.original
++++ get_rg_cns.R
+@@ -291,7 +291,7 @@
+ cat("Estimating copy number in short segments...\n")
+ prev_chr = "0"
+ while (i <= length(seg_chr)) {
+-    if (seg_chr[i] == "Y") {
++    if (seg_chr[i] == gender_chr) {
+         i = i + 1
+         next()
+     }

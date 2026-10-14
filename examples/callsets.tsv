@@ -1,0 +1,2 @@
+cohort	pair_id	caller	vcf	source_status
+synthetic	TOY_PAIR	manta	examples/toy.somatic.vcf	synthetic_control

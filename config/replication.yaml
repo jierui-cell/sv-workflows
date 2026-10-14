@@ -1,0 +1,15 @@
+# Run from sv_pipeline; this preparation workflow is independent of cohort/caller.
+timing_outdir: resources/replication_timing/pcawg_mean_tertiles
+timing_python: environments/replication-timing-python/bin/python
+timing_label_policy: tertiles  # User-selected T1/T2; not claimed as published PCAWG cutoffs.
+timing_input_reference: ''  # Auto-reuse the existing continuous reference when available.
+timing_bin_bp: 1000
+timing_min_coverage: 1.0  # Each input track must cover the whole bin.
+timing_chunk_bins: 5000
+timing_cpus: 1
+timing_memory_gb: 8
+timing_time: 1h
+timing_verify_only: false  # Recheck an existing reference without rebuilding.
+account: null
+partition: null
+scheduler_options: ''

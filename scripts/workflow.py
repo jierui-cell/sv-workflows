@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+"""One launcher for portable calling, signature analysis, reference setup and smoke tests."""
+import argparse
+from copy import deepcopy
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+import re
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULTS = {'callers': 'defaults.yaml', 'signatures': 'signatures.yaml',
+            'timing': 'replication.yaml', 'test': 'test.yaml'}
+ENTRY = {'callers': 'main.nf', 'signatures': 'sv_signatures/main.nf',
+         'timing': 'sv_signatures/pcawg/replication_timing.nf', 'test': 'tests/smoke.nf'}
+
+class UniqueLoader(yaml.SafeLoader):
+    pass
+
+def unique_mapping(loader, node, deep=False):
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in result:
+            raise ValueError(f'Duplicate YAML key: {key}')
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
+
+UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+
+def read_yaml(path):
+    result = yaml.load(Path(path).read_text(), Loader=UniqueLoader)
+    if not isinstance(result, dict):
+        raise ValueError(f'Expected a YAML mapping: {path}')
+    return result
+
+def merge(base, overlay, prefix=''):
+    """Deep override, but never silently accept a mistyped parameter name."""
+    result = deepcopy(base)
+    for key, value in overlay.items():
+        if key not in base:
+            raise ValueError(f'Unknown configuration key: {prefix}{key}')
+        if isinstance(base[key], dict):
+            if not isinstance(value, dict):
+                raise ValueError(f'Expected a mapping: {prefix}{key}')
+            result[key] = merge(base[key], value, prefix + key + '.')
+        else:
+            result[key] = value
+    return result
+
+def override(config, text):
+    key, sep, raw = text.partition('=')
+    if not sep:
+        raise ValueError('--set expects dotted.key=YAML_VALUE')
+    parts = key.split('.')
+    node = config
+    for part in parts[:-1]:
+        if part not in node or not isinstance(node[part], dict):
+            raise ValueError(f'Unknown configuration key: {key}')
+        node = node[part]
+    if parts[-1] not in node:
+        raise ValueError(f'Unknown configuration key: {key}')
+    node[parts[-1]] = yaml.load(raw, Loader=UniqueLoader)
+
+def validate(config, mode):
+    for key in ('max_parallel_callers', 'max_parallel_preflight', 'max_parallel_groups',
+                'group_cpus', 'group_memory_gb'):
+        if key in config and (type(config[key]) is not int or config[key] < 1):
+            raise ValueError(f'{key} must be a positive integer')
+    if config.get('container_engine', 'apptainer') not in ('apptainer', 'singularity'):
+        raise ValueError('container_engine must be apptainer or singularity (SIF images)')
+    if mode == 'callers':
+        callers = config['callers'].split(',')
+        supported = {'preflight', 'manta', 'delly', 'svaba', 'gridss', 'brass', 'cue', 'jabba'}
+        if not callers or set(callers) - supported:
+            raise ValueError('Unknown/discontinued caller; supported: ' + ','.join(sorted(supported)))
+        for caller in ('delly', 'svaba', 'gridss'):
+            if caller in callers:
+                sys.path.insert(0, str(ROOT / 'scripts'))
+                from run_caller import validate as validate_caller
+                validate_caller(caller, config[caller])
+        if config['manta_workflow_memory_gb'] >= config['manta_memory_gb']:
+            raise ValueError('Manta workflow memory must be below the allocated memory')
+    if mode == 'signatures':
+        if config['method'] not in ('cosmic_sv32', 'pcawg_clustersv'):
+            raise ValueError('Unknown signature method')
+        if config['pcawg_stage'] not in ('clustering', 'features', 'signatures'):
+            raise ValueError('Unknown pcawg_stage')
+        if config['method'] == 'pcawg_clustersv' and config['pcawg_stage'] != 'clustering' and not config['pcawg_classified_manifest']:
+            raise ValueError('44 features require validated classifications; without copy number use pcawg_stage=clustering')
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('workflow', choices=DEFAULTS)
+    ap.add_argument('--config', type=Path, action='append', default=[], help='Repeatable YAML overlays, in order')
+    ap.add_argument('--set', action='append', default=[], metavar='KEY=VALUE', help='Typed dotted-key override')
+    ap.add_argument('--profile', choices=('local','slurm','pbs','lsf','sge','test'), default='slurm')
+    ap.add_argument('--site-config', type=Path, help='Additional Nextflow scheduler configuration')
+    ap.add_argument('--resume', nargs='?', const='latest')
+    ap.add_argument('--dry-run', action='store_true', help='Validate YAML and show command; submit nothing')
+    ap.add_argument('--allow-local', action='store_true', help='Confirm a workstation/allocated node, never a login node')
+    args = ap.parse_args()
+    try:
+        config = read_yaml(ROOT / 'config' / DEFAULTS[args.workflow])
+        for path in args.config:
+            config = merge(config, read_yaml(path))
+        for item in args.set:
+            override(config, item)
+        validate(config, args.workflow)
+        if args.profile == 'test' and args.workflow != 'test':
+            raise ValueError('The test profile is reserved for synthetic installation tests')
+        if args.profile == 'local' and args.workflow != 'test' and not args.allow_local:
+            raise ValueError('Use --allow-local only on a workstation/allocated compute node')
+        stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+        log_dir = ROOT / 'logs' / (args.workflow + '-' + stamp)
+        command = ['nextflow', '-log', str(log_dir / 'nextflow.log'), 'run',
+                   str(ROOT / ENTRY[args.workflow]), '-profile', args.profile,
+                   '-params-file', str(log_dir / 'resolved.yaml'),
+                   '-work-dir', str(ROOT / 'work' / args.workflow),
+                   '-with-trace', str(log_dir / 'trace.tsv'),
+                   '-with-report', str(log_dir / 'report.html'),
+                   '-with-timeline', str(log_dir / 'timeline.html')]
+        if args.site_config:
+            command.extend(['-c', str(args.site_config.resolve())])
+        if args.resume:
+            command.extend(['-resume'] + ([] if args.resume == 'latest' else [args.resume]))
+        if args.dry_run:
+            print(yaml.safe_dump(config, sort_keys=False))
+            print(shlex.join(command))
+            return
+        if not shutil.which('nextflow'):
+            raise ValueError('Install Nextflow 25.10.7 and Java 17+ or load the corresponding HPC modules')
+        log_dir.mkdir(parents=True)
+        (log_dir / 'resolved.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
+        hashes = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
+                  for folder in ('scripts','modules','lib','sv_signatures','config')
+                  for p in (ROOT / folder).rglob('*')
+                  if p.is_file() and p.suffix in ('.py','.sh','.pl','.nf','.groovy','.yaml','.R','.json','.lock','.txt','.tsv','.patch','.config')}
+        for name in ('main.nf','nextflow.config'):
+            hashes[name] = hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+        env = dict(os.environ, NXF_VER='25.10.7',
+                   SV_CONTAINER_ENGINE=config.get('container_engine','apptainer'))
+        nf_version = subprocess.check_output(['nextflow','-version'], text=True,env=env)
+        if not re.search(r'\bversion\s+25\.10\.7\b',nf_version):
+            raise ValueError('Expected Nextflow 25.10.7; load/install the pinned version before running')
+        (log_dir / 'provenance.json').write_text(json.dumps({'argv': command, 'code_sha256': hashes,
+            'nextflow_version': nf_version,
+            'overlays': [str(p.resolve()) for p in args.config], 'overrides': args.set}, indent=2) + '\n')
+        env['PATH'] = str(ROOT / 'bin') + os.pathsep + env.get('PATH','')
+        with (log_dir / 'driver.log').open('w') as log:
+            process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT, text=True)
+            for line in process.stdout:
+                sys.stdout.write(line); log.write(line); log.flush()
+            rc = process.wait()
+        (log_dir / 'status.json').write_text(json.dumps({'exit_code': rc, 'command': command}, indent=2)+'\n')
+        raise SystemExit(rc)
+    except (ValueError, OSError, yaml.YAMLError) as exc:
+        ap.error(str(exc))
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,10 @@
+# Research-only screen. These are not validated somatic-calling thresholds.
+breakpoint_tolerance_bp: 500
+fetch_radius_bp: 2000
+depth_window_radius_bp: 500
+min_mapping_quality: 20
+min_base_quality: 20
+min_tumor_junction_links: 3
+max_normal_junction_links: 0
+min_normal_breakpoint_depth: 10
+screened_svtypes: [DEL, DUP]

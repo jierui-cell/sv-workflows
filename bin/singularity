@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Existing validated adapters use Singularity's SIF CLI; Apptainer is compatible.
+set -euo pipefail
+shim_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+engine=${SV_CONTAINER_ENGINE:-apptainer}
+search_path=${PATH//"$shim_dir:"/}
+search_path=${search_path//":$shim_dir"/}
+binary=$(PATH="$search_path" command -v "$engine") || {
+    echo "Container runtime '$engine' not found; configure container_engine in YAML" >&2
+    exit 127
+}
+[[ $(realpath "$binary") != $(realpath "${BASH_SOURCE[0]}") ]] || exit 127
+exec "$binary" "$@"

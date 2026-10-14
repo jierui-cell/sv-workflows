@@ -1,0 +1,13 @@
+{
+  "clustersv": {
+    "url": "https://github.com/cancerit/ClusterSV",
+    "commit": "1d7eeea8f22133d811bed6a4cbbaf1ad2122e2c4",
+    "version": "1.1.0",
+    "license": "AGPL-3.0-or-later"
+  },
+  "panprostate": {
+    "url": "https://github.com/panprostate/mutational-signatures",
+    "commit": "4ff2d0768ca9a489ceb286e90e03f2ac4c4a3d88",
+    "feature_script": "complex_sv_signatures/get_complex_nmf_sigs.R"
+  }
+}

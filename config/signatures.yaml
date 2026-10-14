@@ -1,0 +1,36 @@
+# Run from sv_pipeline with -params-file, or edit a private copy of config.yaml.
+method: cosmic_sv32  # cosmic_sv32 | pcawg_clustersv
+manifest: /path/to/private/sv_manifest.tsv
+outdir: ''  # Default: results/sv_signatures_corrected OR results/sv_signatures_pcawg
+python: sv_signatures/.venv/bin/python
+groups: all  # Or melanoma:manta,pnet:manta
+pair_id: ''
+pair_ids: ''
+min_size_bp: 1000  # COSMIC intrachromosomal minimum
+cosmic_version: 3.6
+skip_fit: false
+pcawg_stage: clustering  # CN-free default. Advanced 44-feature stage requires validated classifications.
+pcawg_min_size_bp: 1  # Preserve short junctions relevant to complex events
+pcawg_classified_manifest: ''
+pcawg_timing_source: reference  # reference (automatic tertiles) | supplied (prepared annotations)
+pcawg_timing_reference: resources/replication_timing/pcawg_mean_tertiles
+pcawg_fdr_first: 0.01
+pcawg_fdr_final: 0.05
+pcawg_footprint_fdr: 0.01
+pcawg_rank_min: 3
+pcawg_rank_max: 10
+pcawg_rank: 0  # Fixed rank >0 or cophenetic survey when 0
+pcawg_nrun: 100  # Rank survey and final fit replicates
+pcawg_seed: 1234
+pcawg_nmf_epsilon: 2.220446049250313e-16  # Floor factors, never input counts
+pcawg_nmf_max_iter: 2000
+account: null
+partition: null
+scheduler_options: ''
+clustersv_source: resources/clustersv/source
+panprostate_source: resources/pcawg_signatures/panprostate
+pcawg_rscript: sv_signatures/pcawg/Rscript.sh
+max_parallel_groups: 4
+group_cpus: 4
+group_memory_gb: 32
+group_time: 4h

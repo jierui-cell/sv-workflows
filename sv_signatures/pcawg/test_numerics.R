@@ -1,0 +1,12 @@
+suppressPackageStartupMessages(library(NMF))
+args <- commandArgs(trailingOnly = TRUE)
+source(file.path(args[1], 'sv_signatures/pcawg/stable_nmf.R'))
+set.seed(17)
+dense <- matrix(sample.int(50, 80, replace = TRUE), 10, 8)
+stock <- nmf(dense, 2, method = 'brunet', nrun = 1, seed = 1234, .options = '-p')
+stable <- nmf(dense, 2, method = stable_brunet(), nrun = 1, seed = 1234, .options = '-p')
+stock_fit <- basis(stock) %*% coef(stock)
+stable_fit <- basis(stable) %*% coef(stable)
+stopifnot(all(is.finite(stable_fit)), max(abs(stock_fit - stable_fit)) < 1e-5 * max(stock_fit))
+cat('Stabilized KL-NMF agrees with stock solver on dense counts; max reconstruction difference:',
+    max(abs(stock_fit - stable_fit)), '\n')

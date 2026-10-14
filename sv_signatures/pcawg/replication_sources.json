@@ -1,0 +1,17 @@
+{
+  "genome_build": "GRCh37",
+  "profile": "pcawg_three_cell_line_mean",
+  "paper": "https://www.nature.com/articles/s41586-019-1913-9",
+  "supplement_table": "Supplementary Table 3, printed pages 45-46",
+  "checksum_source": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/md5sum.txt",
+  "original_pcawg_numeric_category_cutoffs": null,
+  "sources": [
+    {"cell_line": "NHEK", "filename": "wgEncodeUwRepliSeqNhekWaveSignalRep1.bigWig", "md5": "f4f3a90b8ddf1969a891cac04e0b1439"},
+    {"cell_line": "GM12878", "filename": "wgEncodeUwRepliSeqGm12878WaveSignalRep1.bigWig", "md5": "f4b6d8efcf1ae063418831eb69cc60c1"},
+    {"cell_line": "IMR90", "filename": "wgEncodeUwRepliSeqImr90WaveSignalRep1.bigWig", "md5": "db047ecf841aa9a4259142150ab1fc24"}
+  ],
+  "download_base": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/",
+  "quartile_rule_source": "https://github.com/panprostate/mutational-signatures/blob/4ff2d0768ca9a489ceb286e90e03f2ac4c4a3d88/TARBS_RT/002_genome_regions.R",
+  "quartile_rule_supplement": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41586-026-10468-w/MediaObjects/41586_2026_10468_MOESM1_ESM.pdf",
+  "quartile_rule_note": "2026 supplement printed pages 15-16: late <Q1, mid Q1-Q3, early >Q3 on LNCaP. Applying this rule to the three-cell-line mean is an adaptation, not a verified original PCAWG categorization."
+}
