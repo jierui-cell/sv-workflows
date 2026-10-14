@@ -1,6 +1,6 @@
 # Configuration Parameters
 
-Start with the [caller template](examples/cohort.yaml) or [signature template](examples/signatures.yaml). Copy it to a private YAML file; do not edit versioned defaults for each cohort.
+Start with the [caller template](examples/cohort.yaml) or [signature template](examples/signatures.yaml). Copy it to a private YAML file and specify the values you want to change; versioned defaults fill in the rest.
 
 ## How Settings Are Resolved
 
@@ -13,7 +13,7 @@ python scripts/workflow.py callers --config config/private-cohort.yaml \
   --set delly.options.map_qual=2 --set max_parallel_callers=8 --dry-run
 ```
 
-`--set` accepts dotted keys and YAML values. Unknown/duplicate keys and malformed mappings are rejected. Dry-run validates configuration, not BAM contents. Actual runs retain the resolved settings.
+`--set` accepts dotted keys and YAML values. The launcher checks keys/types and saves resolved settings. Dry-run previews the configuration; compute tasks check BAM contents automatically.
 
 ## Inputs and Execution Settings
 
@@ -22,6 +22,8 @@ python scripts/workflow.py callers --config config/private-cohort.yaml \
 | `input` | Example TSV; replace with your private paired samplesheet |
 | `reference` | Placeholder; replace with the exact alignment FASTA |
 | `genome_build` | `GRCh37`; checked against primary reference chromosome lengths |
+| `sequencing_type` | `WGS`; `WES` / `targeted` use the implemented Manta capture route |
+| `target_bed` | `null`; optional WES / required targeted inclusion BED |
 | `exclude_bed` | `null`; optional validated 0-based BED, supported for Manta/DELLY/GRIDSS |
 | `dataset_id` | Placeholder label; required for caller benchmark identity |
 | `outdir` | `results/my_run`; choose a new directory for each experiment |
@@ -47,11 +49,11 @@ Choose the backend with `--profile`; use `--site-config` for scheduler-specific 
 | GRIDSS | `gridss.cpus`: 8 | `gridss.memory_gb`: 96 | `gridss.time`: `24h` |
 | BRASS | `brass.cpus`: 8 | `brass.memory_gb`: 64 | `brass.time`: `24h` |
 
-These are starting allocations, not universal measured requirements. Manta's workflow memory defaults to 56 GB and must be below its allocation. GRIDSS heaps default to 40 GB + 4 GB and require allocation headroom. Child-task requests differ from the small driver allocation.
+These allocations are configurable per caller. Manta's workflow memory is 56 GB within its 64-GB allocation. GRIDSS uses 40-GB and 4-GB heaps within its 96-GB allocation. The small driver schedules these separate compute tasks.
 
 ## Scientific Parameters
 
-Only reviewed options are exposed. Others retain the pinned caller's native defaults and help/config records; adding an option requires a tested adapter change.
+Exposed options are typed and recorded. Other options retain the pinned caller's native defaults, captured with its help/config records.
 
 | Caller | Exposed examples and defaults |
 | --- | --- |
@@ -73,7 +75,7 @@ delly:
     altaf: 0.05
 ```
 
-These are examples, not recommended thresholds. Changes require revalidation and a new output directory. The GRIDSS baseline has no panel of normals or BSgenome; raw joint calls are not equivalent to filtered somatic calls.
+Use a new output directory for each tuning experiment. GRIDSS's baseline has no panel of normals or BSgenome; use its filtered somatic output for downstream somatic analysis.
 
 ## Optional Region Exclusions
 
@@ -83,7 +85,11 @@ Set `exclude_bed` to an absolute, reference-matched 0-based half-open BED path, 
 - GRIDSS receives them via `--blacklist`.
 - Manta receives a **complement inclusion list** via `--callRegions`, generated with `bgzip` and `tabix`. These two tools must be available when exclusions are enabled for Manta.
 
-Do not enable this shared option for SvABA or BRASS: the launcher rejects unsupported combinations rather than silently ignoring the mask. Run those callers separately without it. A mask changes the scientific configuration; revalidate in a fresh output directory. Caller-specific interpretation may differ, so this is not a guarantee of identical callable regions across callers.
+For SvABA or BRASS, use a separate run without this shared setting. Exclusions are a scientific parameter recorded with the outputs; their native interpretation differs by caller.
+
+## Capture-Assay Settings
+
+Set `sequencing_type: WES` or `targeted` and `callers: manta`. Manta automatically receives `--exome`. A supplied `target_bed` is normalized and exclusions are subtracted before generating indexed `--callRegions`; have `bgzip`/`tabix` on compute nodes. Targeted panels require a BED; WES can run without one. [Capture template](examples/capture.yaml).
 
 ## Signature Settings
 
@@ -93,15 +99,20 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | --- | --- |
 | `manifest` | Placeholder; six-column hashed VCF manifest |
 | `genome_build` | `GRCh37`; both supported analysis routes reject other assemblies |
+| `sequencing_type` | `WGS`; genome-wide signature routes use WGS callsets |
 | `python` | `sv_signatures/.venv/bin/python`; separate pinned environment |
 | `method` | `cosmic_sv32` or `pcawg_clustersv` |
 | `outdir` | Empty: method-specific default; use an explicit new path for experiments |
 | `groups` | `all`; optionally comma-separated `cohort:caller` names |
-| `pair_id`, `pair_ids` | Empty; single-pair smoke or multi-pair pilot, not both |
+| `pair_id`, `pair_ids` | Empty: all pairs; optional single-pair or multi-pair selection |
 | `min_size_bp` | `1000`; COSMIC intrachromosomal minimum |
 | `cosmic_version` | `3.6`; SV1–SV12 reference fitting |
 | `skip_fit` | `false`; true constructs SV32 counts only |
-| `pcawg_stage` | `clustering`; supported CN-free path |
+| `pcawg_stage` | `signatures`; CN-free clustering → features → de novo NMF; earlier stops: `features`, `clustering` |
+| `pcawg_rank` | `0`: automatic rank selection; integer ≥2 fixes rank |
+| `pcawg_rank_min`, `pcawg_rank_max` | `2`, `10`; automatic survey limits |
+| `pcawg_nrun`, `pcawg_seed` | `100`, `1234`; repeated fits and reproducible seed |
+| `pcawg_nmf_epsilon`, `pcawg_nmf_max_iter` | `2.220446049250313e-16`, `2000`; factor floor and iteration cap |
 | `pcawg_min_size_bp` | `1`; preserve short oriented junctions |
 | `pcawg_fdr_first`, `pcawg_fdr_final`, `pcawg_footprint_fdr` | `0.01`, `0.05`, `0.01` |
 | `pcawg_mask_policy` | `local_cen_telo_exclusion`; local endpoint filtering, or `primary_only` |
@@ -110,10 +121,10 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | `group_cpus`, `group_memory_gb`, `group_time` | `4`, `32`, `4h` |
 | `max_parallel_groups` | `4` simultaneous cohort/caller groups |
 
-Use `pcawg_stage: clustering` for the ClusterSV route. It reports clustering and annotations, not inferred copy-number-dependent mechanisms. See [methods](docs/signatures.md).
+ClusterSV defaults to full CN-free de novo extraction with 38 channels. No copy-number or classified-event manifest is needed. Counts, learned profiles, sample activities and rank/reconstruction QC are saved. See [methods](docs/signatures.md).
 
 ## Replication-Timing Reference
 
 Timing reference setup uses [config/replication.yaml](config/replication.yaml): 1-kb bins, full per-track bin coverage and fixed genome-wide tertiles. Copy [examples/timing.yaml](examples/timing.yaml) to `config/private-timing.yaml`, then edit the site settings. It requires a separate environment and is independent of cohort/caller.
 
-See [readiness](docs/workflow-status.md) for the five callers and the two analysis routes.
+See [method scope](docs/workflow-status.md) for assay/build support and output interpretation.

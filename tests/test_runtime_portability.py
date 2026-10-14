@@ -78,9 +78,8 @@ class RuntimePortabilityTests(unittest.TestCase):
 
     def test_public_stage_and_exclusion_guards(self):
         signatures = read_yaml(ROOT/'config/signatures.yaml')
-        signatures.update(method='pcawg_clustersv',pcawg_stage='features',pcawg_classified_manifest='supplied.tsv')
-        with self.assertRaisesRegex(ValueError,'outside'):
-            validate(signatures,'signatures')
+        signatures.update(method='pcawg_clustersv',pcawg_stage='features')
+        validate(signatures,'signatures')
         signatures.update(pcawg_stage='clustering',genome_build='GRCh38')
         with self.assertRaisesRegex(ValueError,'GRCh37'):
             validate(signatures,'signatures')

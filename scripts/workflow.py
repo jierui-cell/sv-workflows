@@ -82,6 +82,14 @@ def validate(config, mode):
         supported = {'preflight', 'manta', 'delly', 'svaba', 'gridss', 'brass'}
         if not callers or set(callers) - supported:
             raise ValueError('Unknown/discontinued caller; supported: ' + ','.join(sorted(supported)))
+        if config['sequencing_type'] not in ('WGS', 'WES', 'targeted'):
+            raise ValueError('sequencing_type must be WGS, WES or targeted')
+        if config['sequencing_type'] != 'WGS' and set(callers) - {'preflight','manta'}:
+            raise ValueError('The implemented capture-assay route uses callers=manta; other adapters currently use WGS settings')
+        if config['sequencing_type'] == 'targeted' and not config['target_bed']:
+            raise ValueError('targeted sequencing requires target_bed')
+        if config['target_bed'] and (config['sequencing_type'] == 'WGS' or set(callers)-{'preflight','manta'}):
+            raise ValueError('target_bed is implemented for WES/targeted Manta runs')
         if config.get('exclude_bed') and set(callers)-{'preflight','manta','delly','gridss'}:
             raise ValueError('exclude_bed is supported for Manta, DELLY and GRIDSS only; run other callers separately')
         if 'brass' in callers and config['genome_build'] != config['brass']['assembly']:
@@ -100,8 +108,17 @@ def validate(config, mode):
             raise ValueError('Unknown signature method')
         if config['pcawg_stage'] not in ('clustering', 'features', 'signatures'):
             raise ValueError('Unknown pcawg_stage')
-        if config['method'] == 'pcawg_clustersv' and config['pcawg_stage'] != 'clustering':
-            raise ValueError('44 features and signature extraction are outside this no-copy-number release; use pcawg_stage=clustering')
+        if config['sequencing_type'] != 'WGS':
+            raise ValueError('Genome-wide signature methods require sequencing_type=WGS; capture callsets have a different ascertainment/null model')
+        for key in ('pcawg_rank_min','pcawg_rank_max','pcawg_nrun','pcawg_seed','pcawg_nmf_max_iter'):
+            if type(config[key]) is not int or config[key] < (0 if key == 'pcawg_seed' else 1):
+                raise ValueError(key + ' must be an appropriate nonnegative/positive integer')
+        if config['pcawg_rank_min'] < 2 or config['pcawg_rank_max'] < config['pcawg_rank_min']:
+            raise ValueError('NMF ranks must satisfy 2 <= rank_min <= rank_max')
+        if type(config['pcawg_rank']) is not int or config['pcawg_rank'] < 0 or config['pcawg_rank'] == 1:
+            raise ValueError('pcawg_rank must be 0 (automatic) or an integer >=2')
+        if type(config['pcawg_nmf_epsilon']) not in (int,float) or not 0 < config['pcawg_nmf_epsilon'] < 1:
+            raise ValueError('pcawg_nmf_epsilon must be between 0 and 1')
         if config['method'] == 'pcawg_clustersv' and config['pcawg_timing_source'] != 'reference':
             raise ValueError('The supported ClusterSV route requires the verified timing reference')
         if config.get('pcawg_mask_policy') not in ('local_cen_telo_exclusion','primary_only'):

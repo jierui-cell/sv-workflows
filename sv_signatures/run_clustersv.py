@@ -14,6 +14,7 @@ from run_group import sha256
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from reference_policy import check_vcf
 from vcf_to_bedpe import CLUSTERSV_FIELDS, convert
+from clustersv_features import build as build_cnfree, PROFILE
 
 CLUSTER_COLUMNS = CLUSTERSV_FIELDS + ('cluster_id', 'cluster_size', 'footprint1', 'footprint2',
                                     'footprint1_bounds', 'footprint2_bounds', 'last_agglomeration_value')
@@ -148,7 +149,7 @@ def run(args):
         if sha256(args.timing_reference / 'replication_timing.npz') != timing_metadata['outputs_sha256']['replication_timing.npz']:
             raise ValueError('Timing reference arrays changed after verification')
     class_rows = []
-    if args.stage in ('features', 'signatures'):
+    if args.stage in ('features', 'signatures') and getattr(args,'classified_manifest',None):
         if not args.classified_manifest:
             raise ValueError('PCAWG 44-feature construction requires --classified-manifest: cSVc classes + annotations + source checksums')
         check_revision(args.panprostate_source, upstream['panprostate']['commit'])
@@ -173,7 +174,7 @@ def run(args):
     function_source = args.clustersv_source / 'R/clustering_index.R'
     effective = {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()}
     effective.update({'method': 'pcawg_clustersv', 'upstream': upstream,
-                      'feature_profile': None if args.stage == 'clustering' else 'panprostate_2026_core',
+                      'feature_profile': None if args.stage == 'clustering' else ('panprostate_2026_core' if class_rows else PROFILE),
                       'coordinate_system': '0-based half-open BEDPE, 1bp intervals',
                       'chromosomes': PRIMARY, 'mask_file': str(mask_path),
                       'clustering_function_sha256': sha256(function_source),
@@ -241,8 +242,11 @@ def run(args):
         'junctions': sum(r['junctions'] for r in sample_qc),
         'clustered_junctions': sum(r['clustered_junctions'] for r in sample_qc),
         'note': 'Multi-junction membership is not a complex-event mechanism classification'}, indent=2) + '\n')
-    status = {'status': 'not_requested', 'reason': 'Clustering stage only; annotated complex SV classes are required for signature extraction'}
-    if args.stage in ('features', 'signatures'):
+    status = {'status': 'not_requested', 'reason': 'Clustering stage only'}
+    if args.stage in ('features', 'signatures') and not class_rows:
+        build_cnfree(out, [r['pair_id'] for r in rows])
+        status = {'status':'not_requested','reason':'CN-free features stage only'}
+    if args.stage in ('features', 'signatures') and class_rows:
         selected_manifest = out / 'classification_inputs.tsv'
         write_table(selected_manifest, sorted(CLASS_REQUIRED), [{k: r[k] for k in sorted(CLASS_REQUIRED)} for r in class_rows])
         input_hashes = {r[k]: sha256(Path(r[k])) for r in class_rows for k in ('classified_sv', 'replication_timing', 'fragile_sites', 'refined_bedpe')}
@@ -256,9 +260,11 @@ def run(args):
         }, indent=2) + '\n')
         status = {'status': 'not_requested', 'reason': '44-feature matrix only; decomposition explicitly deferred'}
     if args.stage == 'signatures':
-        command(['bash', str(args.rscript), str(args.nmf_wrapper), str(out / 'PCAWG.features.tsv'),
+        matrix = 'PCAWG.features.tsv' if class_rows else 'ClusterSV38.matrix.tsv'
+        command(['bash', str(args.rscript), str(args.nmf_wrapper), str(out / matrix),
                  str(out), str(args.rank_min), str(args.rank_max), str(args.rank), str(args.nrun),
-                 str(args.seed), str(args.cpus), str(args.nmf_epsilon), str(args.nmf_max_iter)],
+                 str(args.seed), str(args.cpus), str(args.nmf_epsilon), str(args.nmf_max_iter)] +
+                ([] if class_rows else [PROFILE, 'ClusterSV.NMF']),
                 out / 'nmf.log', out / 'nmf.memory.json')
         status = json.loads((out / 'signature_status.json').read_text())
     (out / 'signature_status.json').write_text(json.dumps(status, indent=2) + '\n')
@@ -266,17 +272,18 @@ def run(args):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    for name in ('manifest', 'output', 'clustersv_source', 'panprostate_source', 'upstream_lock',
-                 'rscript', 'cluster_wrapper', 'features_wrapper', 'nmf_wrapper', 'memory_monitor'):
+    for name in ('manifest', 'output', 'clustersv_source', 'upstream_lock',
+                 'rscript', 'cluster_wrapper', 'nmf_wrapper', 'memory_monitor'):
         p.add_argument('--' + name.replace('_', '-'), type=Path, required=True)
-    p.add_argument('--classified-manifest', type=Path)
+    p.set_defaults(panprostate_source=None, features_wrapper=None)
+    p.set_defaults(classified_manifest=None)  # Public route constructs features directly from ClusterSV.
     p.add_argument('--timing-reference', type=Path, help='Verified GRCh37 genome-wide tertile reference; annotate automatically')
     p.add_argument('--timing-wrapper', type=Path, default=Path(__file__).parent / 'pcawg/replication_timing.py')
     p.add_argument('--cohort', required=True)
     p.add_argument('--caller', required=True)
     p.add_argument('--expected-pairs', type=int, required=True)
     p.add_argument('--pair-ids', default='')
-    p.add_argument('--stage', choices=('clustering',), default='clustering',help='Only clustering is supported by this public release')
+    p.add_argument('--stage', choices=('clustering','features','signatures'), default='signatures',help='Stop after clustering/features or extract CN-free de novo signatures')
     p.add_argument('--genome-build', choices=('GRCh37',), default='GRCh37')
     p.add_argument('--mask-policy', choices=('local_cen_telo_exclusion','primary_only'), default='local_cen_telo_exclusion')
     p.add_argument('--min-size-bp', type=int, default=1)
@@ -285,12 +292,12 @@ def main():
     p.add_argument('--nmf-max-iter', type=int, default=2000)
     for name, default in (('fdr-first', .01), ('fdr-final', .05), ('footprint-fdr', .01)):
         p.add_argument('--' + name, type=float, default=default)
-    for name, default in (('rank-min', 3), ('rank-max', 10), ('rank', 0), ('nrun', 100), ('seed', 1234)):
+    for name, default in (('rank-min', 2), ('rank-max', 10), ('rank', 0), ('nrun', 100), ('seed', 1234)):
         p.add_argument('--' + name, type=int, default=default)
     args = p.parse_args()
     if (args.cpus < 1 or args.expected_pairs < 1 or args.min_size_bp < 1 or args.nrun < 1 or
             not 0 < args.fdr_first <= args.fdr_final < 1 or not 0 < args.footprint_fdr < 1 or
-            args.rank_min < 2 or args.rank_max <= args.rank_min or args.rank < 0 or
+            args.rank_min < 2 or args.rank_max < args.rank_min or args.rank < 0 or args.rank == 1 or
             args.nmf_epsilon <= 0 or args.nmf_max_iter < 1):
         p.error('Invalid positive resources, FDR cutoffs, or rank range')
     run(args)

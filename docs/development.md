@@ -1,29 +1,31 @@
-# Development and publication
+# Development and Publication
 
 ## Structure
 
-```text
-main.nf + modules/        # paired calling with five SV callers
-sv_signatures/main.nf    # independently selectable signature workflow
-sv_signatures/pcawg/     # ClusterSV clustering and timing reference
-config/                  # versioned scientific defaults and site templates
-scripts/workflow.py      # shared strict-YAML launcher and provenance
-tests/ + examples/       # synthetic installation/regression tests
-docs/                    # GitHub Pages documentation source
-```
+~~~text
+main.nf + modules/       # paired calling
+sv_signatures/main.nf   # selectable signature analysis
+sv_signatures/pcawg/    # pinned ClusterSV, timing and KL-NMF
+config/                 # defaults and site templates
+scripts/workflow.py     # shared YAML launcher and provenance
+tests/ + examples/      # synthetic regression controls
+docs/                   # GitHub Pages sources
+~~~
 
-Add a caller as a module/adapter with typed option defaults, exact tool identity, task benchmark wrapping, output QC and control tests. Reuse the paired schema and inventory; never add patient IDs or historical job paths to a generic resolver. Separate scientific changes from scheduler changes.
+Add a caller through a module/adapter with typed defaults, pinned tool identity, benchmark wrapping and output QC. Reuse the paired schema and launcher across cohorts. Keep scientific settings separate from scheduler settings.
 
-## Releasing a version
+## Test an Update
 
-Run offline tests, Nextflow smoke, signature numerical controls where relevant, and a real-pair equivalence pilot. Review resolved commands and normalized VCF differences. Tag a version only after documenting these validation results. OCI digests, upstream Git revisions and package/R lockfiles record software identities; lockfiles do not by themselves guarantee identical compiled libraries or biology.
+Run `python scripts/test_installation.py`, the actual entry-point stub/resume test and relevant signature numerical controls. CI runs these on synthetic inputs. Real-pair comparisons and biological benchmarks provide additional release evidence; record their scope with the version.
 
-Before public upload, run `python scripts/audit_publication.py`; review every tracked file. Keep BAMs/VCFs from patients, samplesheets, clinical metadata, private paths, credentials, external binaries and runtime logs outside Git. Synthetic VCFs under `examples/` are the only genomic examples included.
+OCI digests, source revisions, package locks and resolved commands make changes traceable. Give scientific experiments separate output directories.
 
-The independent workflow code is MIT-licensed with owner approval. Upstream tools retain their own licenses; source/resources are fetched separately. See `THIRD_PARTY.md`.
+## Publish Source and Documentation
 
-## GitHub and GitHub Pages
+Run `python scripts/audit_publication.py` before publication. Public content includes code, guides and synthetic fixtures; datasets, metadata, credentials, binaries and runtime files stay in private storage.
 
-Create an empty `jierui-cell/sv-workflows` repository and grant the connected GitHub app access. Upload the reviewed source only. For Pages, select **Settings → Pages → Source: GitHub Actions**, then run the manually triggered `pages` workflow. It builds the Markdown docs and publishes the site. See [GitHub's official Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+Independent code is MIT-licensed; [upstream notices](../THIRD_PARTY.md) preserve tool licenses.
 
-CI runs offline tests on pushes/pull requests; optional real-call and numerical validation should run on properly provisioned compute infrastructure, never untrusted PRs with protected inputs or credentials. No constant monitoring is installed.
+For GitHub Pages, select **Settings → Pages → Source: GitHub Actions**, then run the manually triggered `pages` workflow. It builds this Markdown documentation as a navigable website. [GitHub Pages setup](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+Pull requests run synthetic CI without private cohort inputs or credentials.

@@ -1,46 +1,68 @@
-# Installation and resources
+# Installation and Resources
 
-Use Linux, Python 3.11 and Java 17 or newer. Load site modules if appropriate; versions/module names are site-specific. Install Nextflow **25.10.7**, then run `nextflow -version`. The launcher requests this version via `NXF_VER`; an unrelated system installation still needs checking.
+Prepare the tools and shared resources once, then reuse them across cohorts.
 
-```bash
+## Launcher and Compute Tools
+
+Use Linux, Python 3.11, Java 17+ and Nextflow 25.10.7 through its [official launcher](https://www.nextflow.io/docs/latest/install.html) or site modules:
+
+~~~bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python scripts/test_installation.py
-# HPC: run the following toy task only inside an allocated compute session.
-python scripts/workflow.py test --profile test
-```
+~~~
 
-For a batch allocation, use the [Slurm toy-test example](../README.md#test-your-installation). Container downloads and WGS reference indexing are not needed for this synthetic test.
+Compute tasks use host `python3`, `samtools`, `bcftools` and Apptainer/Singularity. Reference indexing also uses `bwa`. BRASS uses `jq`, `patch` and standard Linux utilities. When supplying Manta region BEDs, also provide `bgzip` and `tabix`.
 
-Real tasks require host `python3`, `samtools`, `bcftools` and the selected SIF runtime. Generating BWA reference indexes requires `bwa`; load/install it before the indexing commands below. BRASS additionally uses `jq`, `patch`, `realpath`, `sha256sum` and standard Linux utilities. Put the activated environment and modules in the compute-node environment, not only your login shell. Docker execution is not implemented: these adapters explicitly use the Singularity/Apptainer CLI.
+## Caller Containers
 
-## Caller containers
+~~~bash
+python scripts/fetch_containers.py --engine apptainer --tools manta,delly,gridss,svaba,brass
+~~~
 
-`config/containers.tsv` contains immutable OCI digests, not mutable image tags. Download once on a permitted network/compute node:
+Use `--engine singularity` if appropriate. Images are pinned by OCI digest in `config/containers.tsv`; the downloader records a SIF SHA-256 receipt. It reuses matching downloads. Set image paths in your private YAML; the cohort template already contains the standard downloaded filenames.
 
-```bash
-python scripts/fetch_containers.py --engine apptainer --tools manta,delly,svaba,gridss,brass
-```
+## Alignment Reference
 
-Each image gets a SHA-256 receipt. Existing images without a matching receipt require review; the helper never silently replaces them. Set the resulting absolute SIF paths in your private overlay. Container pulling on another machine may produce a different SIF byte hash from the same pinned OCI image; record both identities.
+Use the FASTA used for alignment, plus its indexes:
 
-## Alignment reference
+| Resource | Used by |
+| --- | --- |
+| FASTA + `.fai` | All callers |
+| BWA `.amb .ann .bwt .pac .sa` | SvABA, GRIDSS |
+| `.dict` | GRIDSS and BRASS bundle preparation |
 
-Use the **exact FASTA used to align the BAMs**, not merely a reference with the same assembly name. The reconstructed GRCh37_ICGC_standard_v2 reference was accepted for the original cohorts; it is not automatically valid for another dataset. Provide `.fai`; SvABA/GRIDSS also need `.amb`, `.ann`, `.bwt`, `.pac`, `.sa`; GRIDSS needs a sequence dictionary. Prepare indexes on a compute node, retaining the FASTA/index hashes:
+Reuse existing indexes, or build them on a compute node:
 
-```bash
+~~~bash
 samtools faidx /path/to/reference.fa
 bwa index /path/to/reference.fa
 samtools dict /path/to/reference.fa > /path/to/reference.dict
-```
+~~~
 
-Preflight checks header contigs/lengths, sortedness metadata, BAM quickcheck, sample names, indexes and an indexed query. These checks do not prove donor identity or every alignment's reference compatibility.
+Automatic preflight checks BAM/reference dictionaries, the declared build, sample names, sortedness, quickcheck and indexed access.
 
-## BRASS bundle
+## BRASS Bundle
 
-BRASS requires more than a FASTA: depth masks, GC windows, centromere/telomere and cytoband annotations, a serialized VAGrENT transcript cache, and microbial/viral resources. The current adapter is limited to a **validated chr-prefixed GRCh37 bundle**; arbitrary GRCh38 support is not claimed.
+BRASS uses a GRCh37 bundle containing depth/GC masks, centromere/telomere and cytoband annotations, a VAGrENT transcript cache and microbial/viral resources. The bundle adapter matches sequence identities, adapts chromosome labels and checks the native readers. Coordinates remain unchanged.
 
-`config/brass-resources.tsv` records publisher archive MD5s; `scripts/adapt_brass_resources.py` checks source/target sequence dictionaries including sequence MD5 before renaming contigs. It does not lift coordinates. `scripts/prepare_brass_bundle.py` performs adaptation, native reader validation, the guarded chromosome-name overlay and a reference-bound receipt. Use it on an allocated node with downloaded/extracted publisher resources; see its `--help`. The marker is created only after native validation passes. Do not create the marker manually. Resource downloading/extraction remains a documented prerequisite, not an automatic cohort-specific hack.
+Resource archive identities are listed in `config/brass-resources.tsv`. After downloading and extracting those publisher resources, run bundle preparation in a compute allocation:
 
-If you already have resources produced by this adapter, `--reuse-adapted --source /path/to/existing/bundle` can create a **new** validated bundle without repeating adaptation. It verifies the prior adaptation's target-dictionary hash and every recorded adapted-resource hash, reruns native readers, and regenerates the image-derived overlay and reference/image-bound receipt. It does not modify the original bundle or accept its marker alone. See `--help` for the required reference, image and new output path; `--source-dict` is only required for fresh publisher adaptation.
+~~~bash
+python scripts/prepare_brass_bundle.py --help
+~~~
+
+For resources already adapted by this framework, use `--reuse-adapted` to prepare a new bundle without repeating adaptation. It checks recorded hashes, reruns native validation and creates a reference/image-bound receipt. Supply the reference, image and new output path shown by `--help`; fresh adaptation also takes `--source-dict`.
+
+Set `brass.bundle` to the resulting directory. The current bundle route uses chr-prefixed GRCh37 resources. Enable BRASS once this shared resource is prepared; cohort execution then uses it automatically.
+
+## Optional Setup Checks
+
+~~~bash
+python scripts/test_installation.py
+# Workstation / allocated compute node:
+python scripts/workflow.py test --profile test
+python scripts/test_main_stub.py --out results/main_stub_check01
+~~~
+
+The toy test produces three events. The entry-point test exercises real synthetic BAM preflight and stubbed caller tasks with resume. [Test details](validation.md).

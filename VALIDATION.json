@@ -1,7 +1,7 @@
 {
   "release": "0.1.0-dev",
   "validation_date_local": "2026-10-14",
-  "offline_regression_tests": {"status": "passed", "tests": 92},
+  "offline_regression_tests": {"status": "passed", "tests": 97},
   "samplesheet_validation": {"status": "passed", "negative_cases": 10},
   "nextflow_synthetic_smoke": {
     "status": "passed",
@@ -29,6 +29,24 @@
     "synthetic_junctions": 5,
     "clustered_junctions": 2,
     "singleton_junctions": 3
+  },
+  "capture_region_entrypoint": {
+    "status": "passed",
+    "scope": "targeted Manta stub, target/exclusion subtraction and cached resume; no caller inference",
+    "included_bases": 800,
+    "cached_tasks": 2
+  },
+  "cnfree_nmf_controls": {
+    "status": "passed",
+    "profile": "clustersv_cnfree38_v1",
+    "scope": "sparse counts, zero-count samples, seeded repeatability, rank survey, normalized exports and stock-solver agreement"
+  },
+  "clustersv_signature_entrypoint": {
+    "status": "passed",
+    "scope": "actual sv_signatures/main.nf: synthetic VCFs, ClusterSV, synthetic timing annotation, CN-free features, NMF and output verification",
+    "samples": 3,
+    "junctions": 12,
+    "channels": 38
   },
   "publication_pattern_audit": {"status": "passed", "manual_review_still_required": true},
   "portable_real_pair_equivalence": {"status": "not_run"},

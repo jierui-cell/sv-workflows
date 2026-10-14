@@ -1,0 +1,2 @@
+# Lean Python dependencies for ClusterSV timing annotation and CN-free features.
+numpy==2.4.6

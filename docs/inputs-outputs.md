@@ -1,40 +1,48 @@
-# Inputs, outputs and provenance
+# Inputs, Results and Provenance
 
-## Paired WGS samplesheet
+## Paired Samplesheet
 
-Copy the already tab-separated [samplesheet template](../examples/samplesheet.tsv) to an existing private folder outside the checkout, then edit it:
+Copy [examples/samplesheet.tsv](../examples/samplesheet.tsv) and edit it in private storage. The same schema supports WGS, WES and targeted runs; set assay type in YAML.
 
-```bash
-cp examples/samplesheet.tsv /path/to/private/paired_samples.tsv
-```
+All nine TSV headers are retained: `patient_id`, `tumor_bam`, `tumor_bai`, `normal_bam`, `normal_bai`, `sex`, `tumor_phenotype`, `purity`, `ploidy`.
 
-Keep all nine headers and the tabs between columns. The required headers are `patient_id`, `tumor_bam`, `tumor_bai`, `normal_bam`, `normal_bai`, `sex`, `tumor_phenotype`, `purity` and `ploidy`. Do not remove trailing empty metadata fields. The parser accepts unquoted TSV, not space-delimited text or CSV.
+The first five values are required. Metadata can be blank. Use absolute paths, unique IDs and tabs; keep trailing empty metadata fields. Provided purity is >0 and ≤1, and ploidy is >0. Schema and selected IDs are checked before tasks are created.
 
-The first five values must be present. Metadata values may be blank and generate warnings; no purity/ploidy is inferred from missingness. Purity must be >0 and ≤1 when provided; ploidy must be >0. Headers, row widths, duplicate/unsafe pair IDs, same-file pairings, selected IDs and metadata ranges are validated before creating task channels. BAM biological identity still needs separate confirmation. Use absolute paths.
+Missing BRASS purity/ploidy uses `native_defaults`, recorded in effective settings as defaults rather than measured values.
 
-BRASS's missing-statistics policy is `native_defaults`: absent values use native baseline values and are labeled as defaults, not measurements. Mixed measured/default cases use a narrowly tested adapter; retain `effective-settings.json`. These defaults do not validate BRASS's copy-number interpretation.
+## Signature Manifest
 
-## Signature manifest
+The exact TSV header is `cohort pair_id caller vcf source_status source_sha256`. One row identifies one caller's output for one pair. The manifest builder takes the five-column inventory template, validates identifiers and computes source hashes.
 
-The exact header is `cohort pair_id caller vcf source_status source_sha256` (tab-separated). One row per cohort/pair/caller. `scripts/build_sv_manifest.py` takes a five-column private callset inventory, validates IDs/duplicates, and calculates hashes. It does not certify somatic validity. The manifest references final caller-specific VCFs, not a concatenation of all VCFs.
+Use final somatic VCFs for signature input. GRIDSS joint calls remain a separate output before somatic filtering.
 
-## Output layout
+## Output Layout
 
-```text
+~~~text
 results/RUN/
   preflight/PAIR/
   manta/PAIR/
   delly/PAIR/output/
   svaba/PAIR/output/
-  gridss/PAIR/output/       # raw joint + somatic subsets kept separate
-  brass/PAIR/output/       # callset, statistics, stage logs, QC
+  gridss/PAIR/output/
+  brass/PAIR/output/
   provenance/RUN_NAME/
-logs/WORKFLOW-TIMESTAMP/   # resolved YAML, invocation/hashes, trace, driver status
-work/WORKFLOW/            # exact task commands and resume cache
-```
+logs/WORKFLOW-TIMESTAMP/   # settings, trace, driver log and status
+work/WORKFLOW/            # task commands and resume cache
+~~~
 
-Manta's native result hierarchy and other callers' native files are deliberately retained. Output roles are consistent even where native filename conventions differ. The public release does not flatten files that may share names.
+Native caller names/hierarchies are retained. [Quick-start results table](../README.md#retrieve-your-results) identifies the main VCFs.
 
-Signature outputs group by cohort/caller and include conversion audits, source hashes, per-sample totals, clustering controls, feature matrices and verification reports. Failed or research-only outputs remain explicitly labeled. `SUCCESS` means technical completion under the stated policy, not clinical validity.
+Signature results use `OUTDIR/COHORT/CALLER/group_output/`. Optional pair selections retain the existing smoke/subset grouping layout.
 
-Keep the resolved YAML, code/container/reference hashes, task command logs, trace and key QC. Do not duplicate huge inputs into provenance. Runtime logs and manifests contain private paths/IDs and must never be pushed to GitHub.
+## Signature Outputs
+
+COSMIC exports `SV32.matrix.tsv` and `SV32.exposures.tsv`.
+
+ClusterSV exports per-junction cluster/footprint tables and timing annotations. The `features` stage adds `ClusterSV38.matrix.tsv`, `feature_events.tsv` and feature QC. The `signatures` stage adds `ClusterSV.NMF.signatures.tsv`, `activities.tsv` and `fractions.tsv` with the same prefix, plus rank/reconstruction QC and the fitted R object.
+
+NMF profiles are features × components; activities are samples × components. Zero-count samples retain zero activity. [Feature definitions](signatures.md#cn-free-features-and-de-novo-nmf).
+
+## Provenance
+
+Every run saves resolved YAML, code/container/reference identities, exact commands, trace and QC. Keep these with the results; huge BAM inputs are referenced by path rather than copied into provenance. Private paths, metadata and runtime outputs stay outside Git.

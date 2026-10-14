@@ -27,6 +27,7 @@ def main():
     parser.add_argument('--container-engine',choices=('apptainer','singularity'),help='Runtime for the optional Manta container check')
     parser.add_argument('--debug-cache',action='store_true',help='Include detailed hash/cache diagnostics in test logs')
     parser.add_argument('--with-exclusions',action='store_true',help='Exercise the optional DELLY/GRIDSS/Manta region policy')
+    parser.add_argument('--sequencing-type',choices=('WGS','WES','targeted'),default='WGS')
     args = parser.parse_args()
     base = args.out.resolve()
     base.mkdir(parents=True,exist_ok=False)
@@ -63,9 +64,14 @@ def main():
     engine = args.container_engine or os.environ.get('SV_CONTAINER_ENGINE') or ('apptainer' if shutil.which('apptainer') else 'singularity')
     cfg['container_engine'] = engine
     callers = ['delly','gridss'] if args.with_exclusions else ['delly','svaba','gridss','brass']
+    if args.sequencing_type != 'WGS':
+        if not args.manta_image:
+            parser.error('Capture entry-point tests require --manta-image')
+        callers = []
     image = data/'STUB_ONLY.sif'; image.write_text('Not a container; caller stubs only\n')
     cfg.update(input=str(sheet),reference=str(ref),dataset_id='synthetic_stub',
                genome_build='synthetic',allow_local_execution=True,
+               sequencing_type=args.sequencing_type,
                outdir=str(base/'results'),max_parallel_callers=1,max_parallel_preflight=1)
     for caller in callers:
         cfg[caller].update(image=str(image),cpus=1,memory_gb=4)
@@ -73,6 +79,9 @@ def main():
     if args.with_exclusions:
         mask = data/'exclude.bed'; mask.write_text('1\t500\t600\n')
         cfg['exclude_bed'] = str(mask)
+    if args.sequencing_type != 'WGS':
+        targets = data/'targets.bed'; targets.write_text('1\t100\t1000\n')
+        cfg['target_bed'] = str(targets)
     if args.manta_image:
         callers.append('manta')
         cfg.update(manta_image=str(args.manta_image.resolve(strict=True)),manta_cpus=1,
@@ -117,14 +126,16 @@ def main():
                'manta_container_configuration_tested':bool(args.manta_image),
                'exclusions_tested':args.with_exclusions}
     if args.with_exclusions:
-        for caller in ('delly','gridss'):
+        for caller in [name for name in callers if name in ('delly','gridss')]:
             audit = json.loads((base/'results'/caller/'SYNTHETIC/output/regions.audit.json').read_text())
             if audit['excluded_bases'] != 100:
                 raise RuntimeError('Incorrect excluded-base count')
         if args.manta_image:
             matches = list((base/'results/manta/SYNTHETIC').rglob('regions.audit.json'))
-            if len(matches)!=1 or json.loads(matches[0].read_text())['included_bases'] != 9900:
+            expected_bases = 800 if args.sequencing_type != 'WGS' else 9900
+            if len(matches)!=1 or json.loads(matches[0].read_text())['included_bases'] != expected_bases:
                 raise RuntimeError('Incorrect Manta inclusion-list complement')
+    summary['sequencing_type'] = args.sequencing_type
     (base/'validation.json').write_text(json.dumps(summary,indent=2)+'\n')
     print(json.dumps(summary,indent=2))
 

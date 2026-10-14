@@ -4,7 +4,7 @@ manifest: manifests/sv_manifest.tsv
 outdir: results/cosmic_run01
 python: sv_signatures/.venv/bin/python
 method: cosmic_sv32 # Or pcawg_clustersv after ClusterSV/timing reference setup.
-pcawg_stage: clustering # ClusterSV: clustering without copy-number data.
+pcawg_stage: signatures # ClusterSV: CN-free features followed by de novo NMF.
 groups: all
 account: YOUR_ACCOUNT
 partition: YOUR_PARTITION

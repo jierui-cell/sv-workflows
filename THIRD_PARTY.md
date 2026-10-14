@@ -11,6 +11,7 @@ This repository contains workflow orchestration/adapters, not redistributed call
 | GRIDSS | https://github.com/PapenfussLab/gridss ; image digest in config/containers.tsv |
 | BRASS | https://github.com/cancerit/BRASS ; image digest in config/containers.tsv |
 | ClusterSV | https://github.com/cancerit/ClusterSV ; AGPL-3.0-or-later, pinned commit in sv_signatures/pcawg/upstream.json |
+| R NMF | https://github.com/renozao/NMF ; GPL (>=2), version 0.28 in sv_signatures/pcawg/renv.lock |
 | SigProfiler / COSMIC | Python lockfile records tested packages; reference signatures retain provider terms |
 | Replication timing | ENCODE/UW source lock in sv_signatures/pcawg/replication_sources.json |
 

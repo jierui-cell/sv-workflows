@@ -1,31 +1,41 @@
-# Validation: setup is not accuracy
+# Tests and Scientific Controls
 
-## Fast offline tests
+Setup checks are optional for users and run automatically in CI where dependencies are available. Full-cohort launches already include per-pair preflight and signature clustering self-tests.
 
-`python scripts/test_installation.py` runs unit tests for configuration/schema errors, paired-role handling, scientific option defaults, reference-cache reuse, VCF orientations/mate collapse, filtering adapters, BRASS statistics, optimizer convergence guards, and memory/exit-code recording. Fixtures are synthetic and require no EGA files or licensed software.
+## Offline Tests
 
-`python scripts/workflow.py test --profile test` then executes a real Nextflow task on a synthetic VCF. It checks three retained events: deletion, duplication and one interchromosomal adjacency represented by two reciprocal BND records. This test does not run a structural variant caller. On an HPC, launch it within a small compute allocation.
+~~~bash
+python scripts/test_installation.py
+~~~
 
-## Actual entry-point and numerical controls
+Synthetic tests cover YAML/schema validation, paired roles, option defaults, reference/index checks, BED regions, VCF orientation/mate collapse, filter adapters, missing BRASS statistics and benchmark recording.
 
-`python scripts/test_main_stub.py --out results/main_stub_check01` executes `main.nf -stub-run` using a tiny reference and real indexed synthetic tumour/normal BAMs. Preflight is not stubbed. It checks numbered-contig queries, symlinked inputs, four caller branches, cached resume, scheduler-environment recognition, and rejection of unacknowledged local preflight. Add `--manta-image /absolute/path/to/manta.sif` for the fifth branch and real Manta container configuration. Stub tasks do not measure performance or establish biological accuracy. The synthetic assembly exception exists only in stub runs.
+## Entry-Point Tests
 
-GitHub CI runs that four-branch control and the pinned original ClusterSV positive control, including byte-for-byte equivalence against upstream defaults and empty/singleton input cases. CI uses Ubuntu distribution tools and R packages; the production R environment remains separately locked. This is not execution of every caller or validation of non-Slurm schedulers.
+On a workstation or allocated node:
 
-`--with-exclusions` runs a separate region-policy stub check for DELLY/GRIDSS, and Manta when its image is supplied. The Manta check verifies the inclusion-list complement and requires `bgzip`/`tabix`; it does not establish biological equivalence of caller region handling.
+~~~bash
+python scripts/workflow.py test --profile test
+python scripts/test_main_stub.py --out results/main_stub_check01
+~~~
 
-Specify `--container-engine singularity` or `apptainer` when needed for the optional Manta check. `--debug-cache` adds detailed task-hash diagnostics when troubleshooting resume; normal test logs stay compact.
+The toy task retains three SV events. The entry-point control runs actual `main.nf` preflight on indexed synthetic BAMs, exercises four caller stubs and verifies cached resume. Add `--manta-image /absolute/path/to/manta.sif` for Manta configuration. `--with-exclusions` checks region policies. Choose a fresh test output directory.
 
-## Container/setup checks
+## Signature Controls
 
-Pull selected digest-pinned images, check the caller executable inside each with `apptainer exec IMAGE command --help`, and validate the exact alignment reference/indexes. BRASS also requires native bundle validation. ClusterSV and SigProfiler have genuine numerical controls that need their pinned R/Python environments; they are not part of the lightweight offline suite.
+CI exercises original ClusterSV clustering, equivalence against upstream defaults, empty/singleton inputs, CN-free feature counting and synthetic NMF export/reconstruction. The locked R environment supports the same controls on HPC.
 
-## Before a new cohort or release
+COSMIC's numerical clustering control checks actual clustered/nonclustered assignment. These controls test software and numerical behavior; they are separate from biological benchmarking.
 
-1. Run the unchanged original and consolidated workflow on the same matched pair, comparing normalized biological events, sample roles, filters and resolved commands. Differences require review, not automatic acceptance.
-2. Normal-self negative control for each caller, using two read-only aliases with distinct sample labels and **distinct read names** where the caller requires them. A low count is expected but is not a guaranteed zero; investigate every retained PASS candidate. Never interpret an input-label error as successful control validation.
-3. Positive benchmark with a suitable truth set and confident regions. GIAB germline SV truth measures discovery, not tumour-specific somatic precision; do not treat a normal-self GIAB run as a positive somatic benchmark. Use validated somatic spike-in/truth or report the scope honestly.
-4. Tumour/normal swap and repeated-run checks. Compare event-normalized VCFs, not date headers alone. Document assembly/threading variation.
-5. Review emitted commands after parameter/version changes, plus representative calls in IGV. Inspect reference gaps, centromeric noise, adapter artifacts, depth and matched-normal evidence.
+## Optional Biological Evaluation
 
-Only then expand to three concurrent pairs, then measured cohort concurrency. CI passing does not waive biological validation. Reference/tool/filter changes create a new configuration requiring revalidation.
+Use these when evaluating a new dataset, caller version or scientific configuration:
+
+- Normal-self controls to examine retained somatic artifacts.
+- Suitable positive truth sets and confident regions to measure precision/recall.
+- Tumour/normal swaps and repeated-run comparisons to examine role handling and variation.
+- Resolved-command review and representative read-level inspection in IGV.
+
+GIAB germline truth measures germline discovery, not tumour-specific somatic precision. Keep benchmark scope explicit and use somatic truth/spike-ins for somatic accuracy.
+
+These evaluations can be scheduled alongside cohort analysis; the launcher does not require a user-run pilot.

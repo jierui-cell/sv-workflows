@@ -86,11 +86,14 @@ class MatrixOnlyTests(unittest.TestCase):
         self.execute()
         self.assertTrue(any(str(self.args.nmf_wrapper) in argv for argv in self.commands))
 
-    def test_features_require_classification_manifest(self):
+    def test_cnfree_features_do_not_require_classification_manifest(self):
         self.args.classified_manifest = None
-        with self.assertRaisesRegex(ValueError, '44-feature construction requires'):
+        with patch('run_clustersv.convert', side_effect=lambda source, caller, pair, target, *rest:
+                   (target.write_text('\t'.join(self.fields) + '\n'), 1)[1]):
             self.execute()
-        self.assertEqual(self.commands, [])
+        self.assertEqual(len(self.commands),1)
+        self.assertEqual(verify(self.args.output, {'PAIR'})['features'],'completed')
+        self.assertTrue((self.args.output/'ClusterSV38.matrix.tsv').is_file())
 
     def test_clustering_does_not_require_classifications(self):
         self.args.stage = 'clustering'
@@ -112,7 +115,7 @@ class MatrixOnlyTests(unittest.TestCase):
         self.execute()
         path = self.args.output / 'PCAWG.features.tsv'
         path.write_text(path.read_text().replace('feature_01', 'feature_00'))
-        with self.assertRaisesRegex(ValueError, 'Incorrect 44-feature matrix'):
+        with self.assertRaisesRegex(ValueError, 'Incorrect feature matrix'):
             verify(self.args.output, {'PAIR'})
 
     def test_missing_matrix_is_rejected(self):

@@ -1,0 +1,5 @@
+# Overlay with examples/cohort.yaml: --config config/private-cohort.yaml --config examples/capture.yaml
+sequencing_type: WES  # WES | targeted
+callers: manta
+target_bed: null  # Optional for WES, required for targeted; exact reference contig names.
+outdir: results/capture_run01

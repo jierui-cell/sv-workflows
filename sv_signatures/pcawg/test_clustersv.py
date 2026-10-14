@@ -65,6 +65,15 @@ def main():
         cluster(empty, tmp / 'empty')
         assert check_clusters(tmp / 'empty.sv_clusters_and_footprints.tsv', 0, tmp / 'empty.tsv')['junctions'] == 0
         print('ClusterSV positive control and upstream equivalence passed:', qc, flush=True)
+        # Exercise the public CN-free featurization on actual upstream output.
+        from clustersv_features import build as build_cnfree
+        (tmp/'clusters').mkdir()
+        shutil.copyfile(tmp/'clusters.tsv',tmp/'clusters/CONTROL.clusters.tsv')
+        shutil.copyfile(tmp/'empty.tsv',tmp/'clusters/EMPTY.clusters.tsv')
+        feature_qc = build_cnfree(tmp,['CONTROL','EMPTY'])
+        assert feature_qc['sample_totals'] == {'CONTROL':5,'EMPTY':0}
+        assert feature_qc['channels'] == 38
+        print('CN-free counting on actual ClusterSV output passed',flush=True)
         if args.clustering_only:
             return
         # Include absent template classes, size boundaries, overlapping annotations,

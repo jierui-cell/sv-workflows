@@ -3,24 +3,23 @@ nextflow.enable.dsl = 2
 params.manifest = "${projectDir}/input_manifest.tsv"
 params.method = 'cosmic_sv32'
 params.genome_build = 'GRCh37'
+params.sequencing_type = 'WGS'
 params.pcawg_mask_policy = 'local_cen_telo_exclusion'
 params.outdir = ''
 params.python = "${projectDir}/.venv/bin/python"
 params.groups = 'all'
 params.pair_id = ''
 params.pair_ids = ''
-params.pcawg_stage = 'clustering'
+params.pcawg_stage = 'signatures'
 params.pcawg_min_size_bp = 1
-params.pcawg_classified_manifest = ''
 params.pcawg_timing_source = 'reference'  // reference | supplied (legacy prepared annotations)
 params.pcawg_timing_reference = "${projectDir}/../resources/replication_timing/pcawg_mean_tertiles"
 params.clustersv_source = "${projectDir}/../resources/clustersv/source"
-params.panprostate_source = "${projectDir}/../resources/pcawg_signatures/panprostate"
 params.pcawg_rscript = "${projectDir}/pcawg/Rscript.sh"
 params.pcawg_fdr_first = 0.01
 params.pcawg_fdr_final = 0.05
 params.pcawg_footprint_fdr = 0.01
-params.pcawg_rank_min = 3
+params.pcawg_rank_min = 2
 params.pcawg_rank_max = 10
 params.pcawg_rank = 0
 params.pcawg_nrun = 100
@@ -63,9 +62,8 @@ process SIGNATURE_GROUP {
     def root = projectDir.parent.toAbsolutePath().toString()
     def methodArgs = pcawg ? """
         --clustersv-source '${file(params.clustersv_source).toAbsolutePath()}'
-        --panprostate-source '${file(params.panprostate_source).toAbsolutePath()}'
         --upstream-lock upstream.json --rscript '${file(params.pcawg_rscript).toAbsolutePath()}'
-        --cluster-wrapper cluster.R --features-wrapper features.R --nmf-wrapper nmf.R
+        --cluster-wrapper cluster.R --nmf-wrapper nmf.R
         --memory-monitor measure_process_tree.py
         --stage '${params.pcawg_stage}' --min-size-bp ${params.pcawg_min_size_bp}
         --genome-build '${params.genome_build}' --mask-policy '${params.pcawg_mask_policy}'
@@ -75,9 +73,9 @@ process SIGNATURE_GROUP {
         --nrun ${params.pcawg_nrun} --seed ${params.pcawg_seed}
         --nmf-epsilon ${params.pcawg_nmf_epsilon} --nmf-max-iter ${params.pcawg_nmf_max_iter}
         ${params.pcawg_timing_source == 'reference' ? "--timing-reference '${file(params.pcawg_timing_reference).toAbsolutePath()}' --timing-wrapper replication_timing.py" : ''}
-        ${params.pcawg_classified_manifest ? "--classified-manifest '${file(params.pcawg_classified_manifest).toAbsolutePath()}'" : ''}
     """.stripIndent().replaceAll('\\s*\\n\\s*', ' ') : "--genome-build '${params.genome_build}' --min-size-bp ${params.min_size_bp} --cosmic-version ${params.cosmic_version} ${skip}"
-    def control = pcawg ? "test_clustersv.py --pipeline-root '${root}' --clustering-only" : 'test_clustering.py'
+    def control = pcawg ? "test_clustersv.py --pipeline-root '${root}' --clustering-only --clustersv-source '${file(params.clustersv_source).toAbsolutePath()}' --rscript '${file(params.pcawg_rscript).toAbsolutePath()}'" : 'test_clustering.py'
+    def verification = pcawg ? "'${pythonExecutable}' verify_pcawg.py --group-output group_output --expected-count ${expected} --output group_output/verification.json" : ''
     """
     set -euo pipefail
     export MPLBACKEND=Agg
@@ -85,19 +83,19 @@ process SIGNATURE_GROUP {
     '${pythonExecutable}' ${control} > cluster-selftest.log 2>&1
     '${pythonExecutable}' '${runner}' --manifest '${manifest}' --cohort '${cohort}' --caller '${caller}' \
         --output group_output --expected-pairs ${expected} --cpus ${task.cpus} ${pilot} ${methodArgs}
+    ${verification}
     cp cluster-selftest.log group_output/cluster-selftest.log
     """
 }
 
 workflow {
     if (params.genome_build != 'GRCh37') error 'Supported signature routes require GRCh37; other assemblies are not implemented'
+    if (params.sequencing_type != 'WGS') error 'Genome-wide signature methods require WGS; capture assays need a capture-aware model'
     if (!(params.method in ['cosmic_sv32', 'pcawg_clustersv'])) error 'method must be cosmic_sv32 or pcawg_clustersv'
     if (!(params.pcawg_stage in ['clustering', 'features', 'signatures'])) error 'pcawg_stage must be clustering, features or signatures'
     if (!(params.pcawg_timing_source in ['reference','supplied'])) error 'pcawg_timing_source must be reference or supplied'
     if (params.method == 'pcawg_clustersv' && params.pcawg_timing_source != 'reference')
         error 'The public ClusterSV route requires the verified timing reference'
-    if (params.method == 'pcawg_clustersv' && params.pcawg_stage != 'clustering')
-        error 'This release supports ClusterSV clustering and annotations only; classified features/signature extraction are outside its no-copy-number scope'
     def resolvedOutdir = file(params.outdir ?: "${projectDir}/../results/${params.method == 'cosmic_sv32' ? 'sv_signatures_corrected' : 'sv_signatures_pcawg'}").toAbsolutePath()
     def manifest = file(params.manifest, checkIfExists: true)
     def lines = manifest.readLines()
@@ -125,7 +123,7 @@ workflow {
     def helpers = [converter, normalizer, file("${projectDir}/../scripts/reference_policy.py", checkIfExists:true)]
     if (params.method == 'cosmic_sv32') helpers.add(file("${projectDir}/test_clustering.py", checkIfExists: true))
     else {
-        helpers.addAll(['run_group.py','pcawg/cluster.R','pcawg/features.R','pcawg/nmf.R','pcawg/stable_nmf.R','pcawg/upstream.json','pcawg/test_clustersv.py','pcawg/replication_timing.py'].collect { file("${projectDir}/${it}", checkIfExists: true) })
+        helpers.addAll(['run_group.py','verify_pcawg.py','clustersv_features.py','pcawg/cluster.R','pcawg/nmf.R','pcawg/stable_nmf.R','pcawg/upstream.json','pcawg/test_clustersv.py','pcawg/replication_timing.py'].collect { file("${projectDir}/${it}", checkIfExists: true) })
         helpers.add(file("${projectDir}/../scripts/measure_process_tree.py", checkIfExists: true))
         if (!file(params.pcawg_rscript).isFile() || !file("${params.clustersv_source}/R/clustering_index.R").isFile()) error 'Missing ClusterSV resources; run pcawg setup first'
         if (params.pcawg_timing_source == 'reference' &&

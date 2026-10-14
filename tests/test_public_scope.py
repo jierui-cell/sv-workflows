@@ -13,7 +13,7 @@ class PublicScopeTests(unittest.TestCase):
         sources = [ROOT/'README.md', ROOT/'CONFIG_PARAMETERS.md', ROOT/'THIRD_PARTY.md']
         sources += list((ROOT/'docs').glob('*.md'))
         sources += list((ROOT/'examples').rglob('*.md'))
-        forbidden = re.compile(r'\b(?:cue|jabba|lumpy|svtyper|nmf|cplex|gurobi|csvc|panprostate)\b', re.I)
+        forbidden = re.compile(r'\b(?:cue|jabba|lumpy|svtyper|cplex|gurobi|csvc|panprostate)\b', re.I)
         for path in sources:
             self.assertIsNone(forbidden.search(path.read_text()), str(path.relative_to(ROOT)))
 

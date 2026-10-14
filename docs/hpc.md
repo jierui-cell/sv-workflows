@@ -1,23 +1,60 @@
-# HPC profiles
+# HPC Deployment
 
-The launcher supports `--profile slurm`, `pbs`, `lsf`, `sge`, and `local`; all share scientific defaults. Slurm is the production-tested backend. Other scheduler profiles are configuration templates, not yet validated on those schedulers. Check the resolved scheduler command and perform a one-pair pilot at your site.
+Use the same YAML and scientific settings across `slurm`, `pbs`, `lsf`, `sge` or `local` profiles. Slurm has been exercised on compute nodes; the other scheduler profiles provide configurable site templates.
 
-Use YAML for scientific parameters and a private Nextflow site config for scheduler-specific behavior. Example: `--site-config config/site.nextflow.example.config`. PBS/LSF/SGE accounting flags belong in `scheduler_options`; do not assume Slurm flags work elsewhere. Some sites require additional parallel-environment or memory directives.
+## Launch on Slurm
 
-For Slurm, submit `scripts/run.slurm.sh` using your own account, partition, time and driver memory flags. Child-task account/partition come from YAML. Never run real callers directly on a login node. Local execution requires `--allow-local`, an explicit acknowledgement that you are using an allocated node or workstation; it does not allocate resources itself. Numerical signature controls also belong on compute nodes.
+Activate Python and load tools/modules before submission. From the repository root:
 
-Submit from the repository root. Because Slurm copies batch scripts into its spool, the driver resolves the repository using `SV_WORKFLOW_ROOT` when provided, otherwise `SLURM_SUBMIT_DIR`. It checks the repository files before launching. `SV_PYTHON` can specify an absolute environment interpreter. Preflight recognizes Slurm, PBS, LSF and SGE job IDs; local execution uses the explicit acknowledgement passed by the launcher. Environment-recognition tests are not evidence of actual execution on those other schedulers.
+~~~bash
+mkdir -p logs
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=7-00:00:00 --output=logs/cohort-%j.log \
+  scripts/run.slurm.sh callers --config config/private-cohort.yaml
+~~~
 
-## Capacity and concurrency
+The driver schedules per-pair preflight and caller tasks. Child-job account/partition come from your YAML. Its walltime covers the entire cohort, while each caller's `time` sets the individual task limit. Choose site-appropriate durations; upcoming maintenance can delay allocations that extend into the reserved window.
 
-`max_parallel_callers` caps each caller process independently. Start with 1–3; raise it only after a successful same-configuration pilot. `executor.queueSize` provides a separate outstanding-task bound. Eight tasks per caller is not necessarily the fastest configuration when shared BAM/reference I/O is saturated. RAM, scratch capacity, filesystem throughput, CPU allocation and queue availability are separate constraints.
+The driver resolves the checkout from `SLURM_SUBMIT_DIR`. To submit from another directory, export `SV_WORKFLOW_ROOT=/absolute/path/to/sv-workflows`. `SV_PYTHON` can select the launcher's Python executable.
 
-Tasks default to persistent shared work directories for dependable resume and container access. Node-local scratch is optional and site-specific: verify its filesystem, available capacity, mounts and cleanup lifecycle first. Do not set a generic `/tmp` path for large WGS intermediates. Final results/logs must remain on persistent storage.
+## Capacity and Concurrency
 
-## Failures and resume
+The cohort template uses `max_parallel_callers: 8`: eight pairs for each enabled caller. Five callers permit 40 tasks. The scheduler fills available nodes and queues the remainder.
 
-Use the official Nextflow launcher, not a minimal `java -jar` wrapper. The official launcher supplies JVM module-access flags needed by its libraries. The entry-point test verifies actual cached resume; successful task execution alone does not prove task records were persisted. Do not relax cache checks or delete previous work to hide a failed resume test.
+The default Nextflow submission window is 24 outstanding tasks, including preflight. To increase that window, put this in your private site config:
 
-The strategy is `finish`, not `ignore`: submitted tasks can finish, then the run exits unsuccessfully. There are no blanket automatic retries. Fix the logged cause and use `--resume SESSION_UUID`, with unchanged scientific inputs/settings and the original work directory. Resume only the intended session; concurrent launchers make an unqualified latest-session resume risky. For a parameter experiment choose a new output directory rather than resuming into old results.
+~~~groovy
+executor.queueSize = 48
+~~~
 
-Long cohorts need a driver allocation longer than the entire run, not only one task. Restarting the driver does not recreate deleted work artifacts. Configure optional site modules with YAML or your site initialization; no lab account, partition or module is hard-coded in the published launch path.
+Then add `--site-config /path/to/private/site.config` to the launch command. Increase or decrease `max_parallel_callers` independently. Caller CPU/RAM requests are in YAML; shared filesystem throughput and scratch capacity also affect throughput.
+
+Tasks use persistent shared work directories for resume. A site can configure node-local scratch through its Nextflow settings and container mounts; keep results/logs on persistent storage.
+
+## Other Schedulers and Local Execution
+
+Run the launcher inside your site's usual driver allocation:
+
+~~~bash
+python scripts/workflow.py callers --config config/private-cohort.yaml \
+  --profile pbs --site-config /path/to/private/site.config
+~~~
+
+Replace `pbs` with `lsf` or `sge`. Queue/accounting/parallel-environment settings belong in the site config and `scheduler_options`. Preflight recognizes these scheduler job environments.
+
+On a workstation or an already allocated compute node:
+
+~~~bash
+python scripts/workflow.py callers --config config/private-cohort.yaml \
+  --profile local --allow-local
+~~~
+
+`--allow-local` acknowledges the current machine; it does not allocate a node. HPC caller computation belongs on compute nodes.
+
+## Resume and Troubleshooting
+
+Use the official Nextflow launcher, which supplies the JVM settings needed for persistent task caching.
+
+If a task fails, already submitted tasks finish and Nextflow reports the failure. Find the cause in the driver log and task `.command.err`, then relaunch the original command with `--resume SESSION_UUID`. Keep the original work directory. A new scientific experiment uses a new output directory.
+
+The optional [entry-point setup test](validation.md#entry-point-tests) checks preflight and cached resume. Module names can be set in YAML; leave them null when tools are already on PATH.

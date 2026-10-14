@@ -1,13 +1,21 @@
-# Comparable runtime and memory
+# Runtime and Memory Comparisons
 
-All integrated caller processes use the same `measure_benchmark.py` wrapper. `elapsed_seconds` measures the recorded post-preflight caller task boundary, including preparation/filter/QC within that boundary. Queue delay and shared upstream reference preparation are not included.
+All five callers use `measure_benchmark.py` with the same task boundary: after preflight, from caller preparation/configuration through filtering and final QC. `elapsed_seconds` excludes queue delay and shared reference preparation.
 
-On the validated Slurm site, peak resident memory is sampled from the verified job cgroup, excluding unmapped page cache. On other backends, a job-isolated cgroup has not been demonstrated; the public recorder uses command-session process-tree RSS and records a different `memory_method_id`. This excludes unmapped cache but can double-count shared pages. Process PSS is also recorded when `/proc` permissions permit; missing values remain missing. One-second sampling can miss brief peaks.
+## What Is Measured
 
-An absent, unreadable or non-job-isolated cgroup produces a warning and a process-tree fallback instead of preventing the caller from running. A cgroup failure during sampling switches the entire reported primary peak to the process-tree series, not a mixture of methods. `measurement_warnings` and `memory_status` distinguish fallback, partial and unavailable measurement. Different method IDs must remain separate in comparisons; failed/incomplete measurement never becomes a fabricated zero.
+On a readable, verified Slurm job cgroup, the recorder samples resident memory excluding unmapped filesystem cache. Otherwise it records command-session process-tree RSS and a distinct `memory_method_id`. Process PSS is included where available. Sampling is once per second.
 
-GNU `time -v`/`wait4` stage maxima and Slurm accounting are supplementary measurements, not interchangeable with simultaneous process/job peak resident memory. In particular, this site's historical Slurm MaxRSS was dominated by filesystem cache and must not be interpreted as application RSS.
+If cgroup access fails, the caller continues with process-tree measurement. Warnings and measurement status are saved; unavailable values remain missing. If sampling changes method mid-run, the primary reported peak uses the process-tree series throughout.
 
-Use `scripts/summarize_benchmarks.py --help` to export balanced pair/caller tables. The exporter rejects mixed datasets, references, measurement methods, benchmark boundaries, duplicate outputs and inconsistent settings within a caller. Hold CPUs, scientific parameters, filesystem conditions and overlap policy constant; report algorithm-specific RAM allocations separately. Concurrent execution helps throughput but can bias runtime comparison through I/O contention.
+GNU time/wait4 stage measurements and Slurm accounting are supplementary. Slurm MaxRSS can include filesystem cache, so use the primary benchmark field for resident-memory comparison.
 
-Historical results lack uniform instrumentation and are not retroactively made comparable by this refactor. Measure new runs using the new wrapper and retain native logs/QC alongside summaries.
+## Export a Comparison Table
+
+~~~bash
+python scripts/summarize_benchmarks.py --help
+~~~
+
+The exporter prepares balanced pair/caller tables and checks dataset/reference identity, method IDs, task scope, duplicates and settings. Compare one measurement method at a time. Report caller CPU/RAM allocations alongside elapsed time and peak resident memory.
+
+Concurrency improves throughput; shared I/O can influence individual runtimes. For controlled benchmarks, hold inputs, CPUs and filesystem conditions consistent. Historical runs without this wrapper retain their original measurement scope.

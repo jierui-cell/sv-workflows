@@ -26,6 +26,7 @@ process VALIDATE_PAIR {
     path reference_checker
     val is_stub_run
     path exclude_regions
+    path target_regions
     output:
     val meta, emit: validated
     path '*.validation.tsv'
@@ -36,7 +37,7 @@ process VALIDATE_PAIR {
     path 'reference.validation.json'
     path 'input-regions/*', optional: true
     script:
-    def regionCheck = exclude_regions ? "python3 '${projectDir}/scripts/regions.py' --exclude '${exclude_regions[0]}' --fai '${reference_fai}' --out input-regions" : ''
+    def regionCheck = (exclude_regions || target_regions) ? "python3 '${projectDir}/scripts/regions.py' ${exclude_regions ? "--exclude '${exclude_regions[0]}'" : ''} ${target_regions ? "--targets '${target_regions[0]}'" : ''} --fai '${reference_fai}' --out input-regions" : ''
     """
     set -euo pipefail
     ${regionCheck}
@@ -65,6 +66,8 @@ process MANTA {
     path benchmarker
     path exclude_regions
     val exclude_sha256
+    path target_regions
+    val target_sha256
     output:
     path 'manta/results/variants/*', optional: true
     path 'somaticSV.stats.txt'
@@ -79,8 +82,9 @@ process MANTA {
     def normalDir = meta.normal_dir
     def refDir = file(params.reference).toRealPath().parent
     def options = groovy.json.JsonOutput.toJson(params.manta_options)
-    def regionPreparation = exclude_regions ? "python3 '${projectDir}/scripts/regions.py' --exclude '${exclude_regions[0]}' --fai '${reference_fai}' --out regions --manta" : ''
-    def regionFlags = exclude_regions ? "--callRegions regions/manta.call-regions.bed.gz" : ''
+    def regionPreparation = (exclude_regions || target_regions) ? "python3 '${projectDir}/scripts/regions.py' ${exclude_regions ? "--exclude '${exclude_regions[0]}'" : ''} ${target_regions ? "--targets '${target_regions[0]}'" : ''} --fai '${reference_fai}' --out regions --manta" : ''
+    def regionFlags = (exclude_regions || target_regions) ? "--callRegions regions/manta.call-regions.bed.gz" : ''
+    def assayFlags = params.sequencing_type == 'WGS' ? '' : '--exome'
     def binds = "${projectDir}:${projectDir},\$PWD:\$PWD,${refDir}:${refDir}:ro,${tumorDir}:${tumorDir}:ro,${normalDir}:${normalDir}:ro"
     def benchmarkSpec = groovy.json.JsonOutput.toJson([caller:'manta', pair_id:meta.id,
         dataset_id:params.dataset_id, reference:file(params.reference).toString(),
@@ -90,7 +94,8 @@ process MANTA {
                   workflow_memory_gb:params.manta_workflow_memory_gb,
                   cpus:task.cpus, memory_gb:task.memory.toGiga(),
                   genome_build:params.genome_build, exclude_bed:params.exclude_bed,
-                  exclude_bed_sha256:exclude_sha256]])
+                  exclude_bed_sha256:exclude_sha256, sequencing_type:params.sequencing_type,
+                  target_bed:params.target_bed, target_bed_sha256:target_sha256]])
     """
     cat > benchmark.meta.json <<'BENCHMARK_SETTINGS'
     ${benchmarkSpec}
@@ -105,7 +110,7 @@ process MANTA {
     singularity exec --cleanenv --bind "${binds}" '${image}' python '${configurator}' manta.overrides.json --reference '${reference}'
     singularity exec --cleanenv --bind "${binds}" '${image}' \
       configManta.py --normalBam '${normal_bam}' --tumorBam '${tumor_bam}' \
-      --referenceFasta '${reference}' --config manta.effective.ini --runDir manta ${regionFlags}
+      --referenceFasta '${reference}' --config manta.effective.ini --runDir manta ${assayFlags} ${regionFlags}
     python3 '${projectDir}/scripts/measure_command.py' manta.time.txt singularity exec --cleanenv --bind "${binds}" '${image}' \
       python manta/runWorkflow.py -m local -j ${task.cpus} -g ${params.manta_workflow_memory_gb}
     bcftools view -Ov -o /dev/null manta/results/variants/somaticSV.vcf.gz
@@ -115,7 +120,9 @@ process MANTA {
     """
     stub:
     def options = groovy.json.JsonOutput.toJson(params.manta_options)
-    def regionPreparation = exclude_regions ? "python3 '${projectDir}/scripts/regions.py' --exclude '${exclude_regions[0]}' --fai '${reference_fai}' --out regions --manta" : ''
+    def regionPreparation = (exclude_regions || target_regions) ? "python3 '${projectDir}/scripts/regions.py' ${exclude_regions ? "--exclude '${exclude_regions[0]}'" : ''} ${target_regions ? "--targets '${target_regions[0]}'" : ''} --fai '${reference_fai}' --out regions --manta" : ''
+    def regionFlags = (exclude_regions || target_regions) ? '--callRegions regions/manta.call-regions.bed.gz' : ''
+    def assayFlags = params.sequencing_type == 'WGS' ? '' : '--exome'
     def binds = "${projectDir}:${projectDir},\$PWD:\$PWD,${file(params.reference).toRealPath().parent}:${file(params.reference).toRealPath().parent}:ro,${meta.tumor_dir}:${meta.tumor_dir}:ro,${meta.normal_dir}:${meta.normal_dir}:ro"
     """
     ${regionPreparation}
@@ -123,6 +130,9 @@ process MANTA {
     ${options}
     MANTA_OPTIONS
     singularity exec --cleanenv --bind "${binds}" '${image}' python '${configurator}' manta.overrides.json --reference '${reference}'
+    singularity exec --cleanenv --bind "${binds}" '${image}' configManta.py \
+      --normalBam '${normal_bam}' --tumorBam '${tumor_bam}' --referenceFasta '${reference}' \
+      --config manta.effective.ini --runDir manta ${assayFlags} ${regionFlags}
     sha256sum manta.effective.ini > artifacts.sha256
     echo 'STUB: configuration tested; no SV calls produced' > somaticSV.stats.txt
     echo '{"status":"stub_not_benchmarked"}' > benchmark.json
@@ -138,6 +148,15 @@ workflow {
     provenance.mkdirs()
     file("${provenance}/resolved-params.json").text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(params))
     def requested = params.callers.tokenize(',')
+    if (!(params.sequencing_type in ['WGS','WES','targeted'])) error 'sequencing_type must be WGS, WES or targeted'
+    if (params.sequencing_type != 'WGS' && requested.any { !(it in ['preflight','manta']) })
+        error 'Capture-assay settings are implemented for Manta; select callers=manta'
+    if (params.sequencing_type == 'targeted' && !params.target_bed) error 'targeted sequencing requires target_bed'
+    if (params.target_bed && (params.sequencing_type == 'WGS' || requested.any { !(it in ['preflight','manta']) }))
+        error 'target_bed is implemented for WES/targeted Manta runs'
+    def targetRegions = params.target_bed ? [file(params.target_bed, checkIfExists:true).toRealPath()] : []
+    def targetHash = params.target_bed ? java.security.MessageDigest.getInstance('SHA-256')
+        .digest(file(params.target_bed).bytes).encodeHex().toString() : 'none'
     if (!(params.genome_build in ['GRCh37','GRCh38']) && !(workflow.stubRun && params.genome_build == 'synthetic'))
         error 'genome_build must be GRCh37 or GRCh38; synthetic is permitted only with -stub-run'
     if (params.exclude_bed && requested.any { !(it in ['preflight','manta','delly','gridss']) })
@@ -195,7 +214,7 @@ workflow {
 
     VALIDATE_PAIR(pair_ch, file("${params.reference}.fai", checkIfExists: true),
                   file("${projectDir}/scripts/validate_pair.sh", checkIfExists: true),
-                  file("${projectDir}/scripts/reference_policy.py", checkIfExists: true), workflow.stubRun, excludeRegions)
+                  file("${projectDir}/scripts/reference_policy.py", checkIfExists: true), workflow.stubRun, excludeRegions, targetRegions)
     if ('manta' in requested) {
         ready_ch = VALIDATE_PAIR.out.validated.map { meta ->
             tuple(meta, file(meta.tumor_bam), file(meta.tumor_bai),
@@ -206,7 +225,7 @@ workflow {
             file("${params.reference}.fai", checkIfExists: true),
             file(params.manta_image, checkIfExists: true),
             file("${projectDir}/scripts/configure_manta.py", checkIfExists: true),
-            file("${projectDir}/scripts/measure_benchmark.py", checkIfExists: true), excludeRegions, excludeHash)
+            file("${projectDir}/scripts/measure_benchmark.py", checkIfExists: true), excludeRegions, excludeHash, targetRegions, targetHash)
     } else if (requested == ['preflight']) {
         log.info 'PREFLIGHT ONLY: no SV callers requested.'
     }

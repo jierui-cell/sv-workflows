@@ -7,6 +7,7 @@ import math
 from pathlib import Path
 
 from run_clustersv import CLUSTER_COLUMNS, REQUIRED, table
+from clustersv_features import CHANNELS, PROFILE, channel
 
 
 def verify(root, expected):
@@ -35,42 +36,55 @@ def verify(root, expected):
         raise ValueError('Clustering QC mismatch')
     status = json.loads((root / 'signature_status.json').read_text())
     feature_status = 'not_requested'
-    feature_path = root / 'PCAWG.features.tsv'
+    cnfree = (root/'ClusterSV38.matrix.tsv').exists()
+    channel_count = 38 if cnfree else 44
+    prefix = 'ClusterSV.NMF' if cnfree else 'PCAWG.NMF'
+    feature_path = root / ('ClusterSV38.matrix.tsv' if cnfree else 'PCAWG.features.tsv')
     if feature_path.exists() or (root / 'feature_status.json').exists() or status['status'] == 'completed':
         with feature_path.open() as handle:
             feature_reader = csv.DictReader(handle, delimiter='\t')
             columns = feature_reader.fieldnames
             features = list(feature_reader)
-        if (not columns or columns[0] != 'Feature' or len(features) != 44
+        if (not columns or columns[0] != 'Feature' or len(features) != channel_count
                 or set(columns[1:]) != expected or len(columns[1:]) != len(expected)
-                or len({r.get('Feature') for r in features}) != 44
+                or len({r.get('Feature') for r in features}) != channel_count
                 or any(not r.get('Feature') or None in r or any(v is None for v in r.values()) for r in features)):
-            raise ValueError('Incorrect 44-feature matrix')
+            raise ValueError('Incorrect feature matrix')
         values = [float(r[s]) for r in features for s in columns[1:]]
         if any(not math.isfinite(v) or v < 0 for v in values):
             raise ValueError('Invalid 44-feature count')
-        feature_qc = json.loads((root / 'feature_qc.json').read_text())
-        if (feature_qc.get('profile') != 'panprostate_2026_core' or feature_qc.get('channels') != 44
+        feature_qc = json.loads((root / ('feature_status.json' if cnfree else 'feature_qc.json')).read_text())
+        if (feature_qc.get('profile') != (PROFILE if cnfree else 'panprostate_2026_core') or feature_qc.get('channels') != channel_count
                 or feature_qc.get('samples') != len(expected)
                 or not math.isclose(feature_qc['feature_total'], math.fsum(values), rel_tol=1e-9, abs_tol=1e-6)):
             raise ValueError('Feature QC mismatch')
         if (root / 'feature_status.json').exists():
             metadata = json.loads((root / 'feature_status.json').read_text())
-            if (metadata.get('status') != 'completed' or metadata.get('channels') != 44
-                    or metadata.get('samples') != len(expected) or metadata.get('profile') != 'panprostate_2026_core'
-                    or metadata.get('matrix') != 'PCAWG.features.tsv'):
+            if (metadata.get('status') != 'completed' or metadata.get('channels') != channel_count
+                    or metadata.get('samples') != len(expected) or metadata.get('profile') != (PROFILE if cnfree else 'panprostate_2026_core')
+                    or metadata.get('matrix') != feature_path.name):
                 raise ValueError('Feature status mismatch')
         feature_status = 'completed'
-        if status['status'] == 'not_requested' and list(root.glob('PCAWG.NMF.*')):
+        if cnfree:
+            from collections import Counter
+            if [r['Feature'] for r in features] != list(CHANNELS):
+                raise ValueError('Incorrect CN-free channel order')
+            for pair in expected:
+                observed = Counter(channel(r) for r in table(root/'clusters'/f'{pair}.clusters.tsv',set(CLUSTER_COLUMNS)))
+                if any(float(row[pair]) != observed[row['Feature']] for row in features):
+                    raise ValueError('CN-free matrix does not reproduce source junctions: ' + pair)
+        if status['status'] == 'not_requested' and list(root.glob(prefix + '.*')):
             raise ValueError('Unexpected NMF exports when decomposition was not requested')
     if status['status'] == 'completed':
-        signatures = table(root / 'PCAWG.NMF.signatures.tsv', {'Feature'})
-        activity = table(root / 'PCAWG.NMF.activities.tsv', {'Samples'})
-        fractions = table(root / 'PCAWG.NMF.fractions.tsv', {'Samples'})
-        if {r['Samples'] for r in activity} != expected or len(activity) != len(expected) or len(fractions) != len(expected):
+        signatures = table(root / (prefix+'.signatures.tsv'), {'Feature'})
+        activity = table(root / (prefix+'.activities.tsv'), {'Samples'})
+        fractions = table(root / (prefix+'.fractions.tsv'), {'Samples'})
+        if ({r['Samples'] for r in activity} != expected or len(activity) != len(expected)
+                or {r['Samples'] for r in fractions} != expected or len(fractions) != len(expected)):
             raise ValueError('Incorrect activity sample set')
         names = [k for k in signatures[0] if k != 'Feature']
-        if len(names) != status['rank'] or len(signatures) != 44:
+        if (len(names) != status['rank'] or len(signatures) != channel_count
+                or [r['Feature'] for r in signatures] != [r['Feature'] for r in features]):
             raise ValueError('NMF rank/channel mismatch')
         for name in names:
             values = [float(r[name]) for r in signatures]
@@ -90,6 +104,8 @@ def verify(root, expected):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--group-output',type=Path,help='Verify a single completed task output')
+    p.add_argument('--expected-count',type=int)
     p.add_argument('--manifest', type=Path, default=Path('sv_signatures/input_manifest.tsv'))
     p.add_argument('--outdir', type=Path, default=Path('results/sv_signatures_pcawg'))
     p.add_argument('--groups', default='all')
@@ -97,6 +113,17 @@ def main():
     p.add_argument('--pair-id', default='', help='Single-pair smoke layout')
     p.add_argument('--output', type=Path)
     args = p.parse_args()
+    if args.group_output:
+        sources = table(args.group_output/'sources.tsv',{'pair_id'})
+        pairs = {row['pair_id'] for row in sources}
+        if args.expected_count is None or len(pairs) != args.expected_count:
+            p.error('Single-group verification requires matching --expected-count')
+        payload = dict(status='verified',**verify(args.group_output,pairs))
+        text = json.dumps(payload,indent=2)+'\n'
+        if args.output:
+            args.output.write_text(text)
+        print(text,end='')
+        return
     rows = table(args.manifest, REQUIRED)
     groups = {}
     if args.pair_id and args.pair_ids:

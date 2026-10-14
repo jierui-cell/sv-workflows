@@ -15,7 +15,8 @@ class PortabilityTests(unittest.TestCase):
     def test_copyable_caller_template(self):
         cfg=merge(read_yaml(ROOT/'config/defaults.yaml'),read_yaml(ROOT/'examples/cohort.yaml'))
         validate(cfg,'callers')
-        self.assertEqual(cfg['callers'],'manta,delly')
+        self.assertEqual(set(cfg['callers'].split(',')),{'manta','delly','gridss','svaba','brass'})
+        self.assertEqual(cfg['max_parallel_callers'],8)
         self.assertEqual(cfg['manta_options']['minPassSomaticScore'],30)
         self.assertEqual(cfg['brass']['missing_statistics_policy'],'native_defaults')
 
@@ -24,7 +25,7 @@ class PortabilityTests(unittest.TestCase):
         validate(cfg,'signatures')
         cfg['method']='pcawg_clustersv'
         validate(cfg,'signatures')
-        self.assertEqual(cfg['pcawg_stage'],'clustering')
+        self.assertEqual(cfg['pcawg_stage'],'signatures')
 
     def test_copyable_timing_template(self):
         cfg=merge(read_yaml(ROOT/'config/replication.yaml'),read_yaml(ROOT/'examples/timing.yaml'))
@@ -59,11 +60,12 @@ class PortabilityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'Duplicate'):
                 read_yaml(p)
 
-    def test_missing_cn_and_retired_caller_fail_closed(self):
+    def test_cnfree_stages_and_retired_caller(self):
         cfg=read_yaml(ROOT/'config/signatures.yaml')
         cfg.update(method='pcawg_clustersv',pcawg_stage='features')
-        with self.assertRaisesRegex(ValueError,'44 features'):
-            validate(cfg,'signatures')
+        validate(cfg,'signatures')
+        cfg.update(pcawg_stage='signatures')
+        validate(cfg,'signatures')
         cfg=read_yaml(ROOT/'config/defaults.yaml'); cfg['callers']='lumpy'
         with self.assertRaisesRegex(ValueError,'discontinued'):
             validate(cfg,'callers')
