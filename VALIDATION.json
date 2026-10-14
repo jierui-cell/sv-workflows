@@ -1,7 +1,13 @@
 {
   "release": "0.1.0-dev",
   "validation_date_local": "2026-10-14",
-  "offline_regression_tests": {"status": "passed", "tests": 98},
+  "offline_regression_tests": {"status": "passed", "tests": 110},
+  "resource_layout_checks": {
+    "status": "passed",
+    "scope": "selected resources, missing/empty/unreadable files, relative and overridden paths, native BRASS bundle markers, signature inputs and no-submission failure handling",
+    "tests": 12,
+    "input_normalization": "stable content-addressed samplesheet; unchanged original input and cache mtime on repeat"
+  },
   "pcawg_signature_route": {
     "status": "on_hold",
     "analysis_enabled": false,

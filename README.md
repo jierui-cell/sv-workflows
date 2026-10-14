@@ -7,7 +7,7 @@
 [![Nextflow](https://img.shields.io/badge/Nextflow-25.10.7-blue)](https://www.nextflow.io/)
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](requirements.txt)
 
-[Launch a cohort](#usage-instructions) · [Signatures](#sv-signature-analysis) · [Exome / panels](#exome-and-targeted-sequencing) · [Results](#retrieve-your-results) · [Parameters](CONFIG_PARAMETERS.md)
+[Folders](#standard-folder-layout) · [Launch a cohort](#usage-instructions) · [Signatures](#sv-signature-analysis) · [Exome / panels](#exome-and-targeted-sequencing) · [Results](#retrieve-your-results) · [Parameters](CONFIG_PARAMETERS.md)
 
 ## Overview
 
@@ -24,6 +24,30 @@ Paired BAMs → Automatic checks → Five SV callers → VCFs + QC + benchmarks
 ~~~
 
 The framework is for research analysis. [Method scope](docs/workflow-status.md) describes reference builds, assay support and output interpretation.
+
+## Standard Folder Layout
+
+The defaults use this layout inside your checkout—no resource-path edits are needed when you follow it:
+
+~~~text
+sv-workflows/
+├── inputs/
+│   ├── samplesheet.tsv       # Your paired samples
+│   ├── bams/                 # BAMs + indexes; existing files may be linked here
+│   ├── regions/              # Optional targets/exclusions
+│   └── callsets.tsv          # VCF inventory for signature analysis
+├── resources/
+│   ├── reference/reference.fa  # Alignment FASTA + matching indexes alongside it
+│   └── brass/bundle/         # Prepared BRASS bundle, when BRASS is selected
+├── containers/images/        # Created/populated by the image downloader
+├── manifests/sv_manifest.tsv # Generated signature manifest
+├── config/private-cohort.yaml
+├── results/                  # Created by the workflow
+├── logs/                     # Settings, setup checks and run logs
+└── work/                     # Task files for resume
+~~~
+
+Relative paths in YAML and BAM paths in the samplesheet are resolved from the **repository root**, not the YAML file's folder. Absolute paths remain supported through YAML overrides. Inputs, resources, images and runtime outputs are Git-ignored; only source and synthetic examples are published.
 
 ## Requirements
 
@@ -49,28 +73,40 @@ Use `--engine singularity` for Singularity sites. Digest-pinned images go into `
 
 ### 3. Prepare the alignment reference
 
-Use the FASTA used to align your BAMs. Reuse existing indexes or create them on a compute node with samtools and BWA:
+Place the FASTA used to align your BAMs at **`resources/reference/reference.fa`**, with its matching indexes in the same folder. This filename is a convention, not a different reference assembly. Reuse the existing indexed reference or create indexes on a compute node with samtools and BWA:
 
 ~~~bash
-samtools faidx /path/to/reference.fa
-bwa index /path/to/reference.fa
-samtools dict /path/to/reference.fa > /path/to/reference.dict
+mkdir -p resources/reference
+samtools faidx resources/reference/reference.fa
+bwa index resources/reference/reference.fa
+samtools dict resources/reference/reference.fa > resources/reference/reference.dict
 ~~~
 
-BRASS also needs a GRCh37 resource bundle: [prepare or reuse a bundle](docs/setup.md#brass-bundle). Enable the callers you have prepared; [setup](docs/setup.md) lists each caller's resources.
+BRASS also needs **`resources/brass/bundle/`**: [prepare or reuse a bundle](docs/setup.md#brass-bundle). Its image path and bundle path are already in the defaults. [Setup](docs/setup.md) lists each caller's resources.
 
 ## Usage Instructions
 
 ### 1. Supply your samples and settings
 
 ~~~bash
-cp examples/samplesheet.tsv /path/to/private/paired_samples.tsv
+mkdir -p inputs/bams inputs/regions logs
+cp examples/samplesheet.tsv inputs/samplesheet.tsv
 cp examples/cohort.yaml config/private-cohort.yaml
 ~~~
 
-The TSV template has nine headers: `patient_id`, `tumor_bam`, `tumor_bai`, `normal_bam`, `normal_bai`, `sex`, `tumor_phenotype`, `purity`, `ploidy`. Fill the first five columns with a unique pair ID and absolute BAM/index paths. Keep all headers; metadata values can be blank. **Missing purity or ploidy does not block calling.**
+Place or link your BAMs and indexes in `inputs/bams/`. Edit `inputs/samplesheet.tsv` with unique pair IDs and the corresponding filenames; paths such as `inputs/bams/TOY_PAIR.tumor.bam` are supported. Absolute paths to existing BAMs also work, without copying them.
 
-In the YAML, set input/reference paths, dataset label, output directory and HPC account/partition. The template selects all five callers and **eight concurrent pairs per caller**. Remove callers you do not need. Scientific defaults are already defined in [config/defaults.yaml](config/defaults.yaml).
+The TSV template has nine headers: `patient_id`, `tumor_bam`, `tumor_bai`, `normal_bam`, `normal_bai`, `sex`, `tumor_phenotype`, `purity`, `ploidy`. Fill the first five columns and keep all headers; metadata values can be blank. **Missing purity or ploidy does not block calling.**
+
+In the YAML, set your dataset label and HPC account/partition, and choose callers/concurrency. The template selects all five callers and **eight concurrent pairs per caller**. It already uses the standard samplesheet/reference paths and inherits downloaded image filenames. Change a path only when using a different location. [config/defaults.yaml](config/defaults.yaml) defines the resource paths and scientific settings.
+
+**Optional: check your setup before submission:**
+
+~~~bash
+python scripts/workflow.py callers --config config/private-cohort.yaml --check-files
+~~~
+
+This checks the selected pairs' BAMs/indexes, reference indexes, selected caller images, optional BEDs and BRASS bundle files. It reports all missing, unreadable or empty files, without running Nextflow or submitting jobs. A normal launch performs the same check automatically. Unselected callers' resources are not required.
 
 ### 2. Launch the full cohort
 
@@ -164,7 +200,7 @@ For a targeted panel, use these values instead:
 ~~~yaml
 sequencing_type: targeted
 callers: manta
-target_bed: /absolute/path/to/panel_targets.bed
+target_bed: inputs/regions/panel_targets.bed
 outdir: results/panel_run01
 ~~~
 
@@ -184,16 +220,17 @@ You receive the same Manta VCF, QC and benchmark files described below. **This l
 
 ## SV Signature Analysis
 
-Create a five-column VCF inventory following [examples/callsets.tsv](examples/callsets.tsv), then build the hashed manifest:
+Copy [examples/callsets.tsv](examples/callsets.tsv) to `inputs/callsets.tsv`, fill it with your completed caller VCFs, then build the hashed manifest:
 
 ~~~bash
-mkdir -p manifests
-python scripts/build_sv_manifest.py --inventory /path/to/private/callsets.tsv \
+mkdir -p inputs manifests
+cp examples/callsets.tsv inputs/callsets.tsv
+python scripts/build_sv_manifest.py --inventory inputs/callsets.tsv \
   --output manifests/sv_manifest.tsv
 cp examples/signatures.yaml config/private-signatures.yaml
 ~~~
 
-Set the manifest and HPC values, complete the one-time [signature setup](docs/signatures.md), and run COSMIC SV32:
+The manifest and Python environment paths already match the standard layout. Set your HPC values, complete the one-time [signature setup](docs/signatures.md), and run COSMIC SV32. You can check its files with `python scripts/workflow.py signatures --config config/private-signatures.yaml --check-files`.
 
 | Route | What it does | Main outputs |
 | --- | --- | --- |

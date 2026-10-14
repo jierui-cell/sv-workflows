@@ -6,16 +6,16 @@
 
 ## Supply Your Callsets
 
-Create a five-column inventory from [the template](../examples/callsets.tsv), then:
+Copy the five-column [template](../examples/callsets.tsv) to `inputs/callsets.tsv` and edit its rows to reference your caller outputs, then:
 
 ~~~bash
-mkdir -p manifests
-python scripts/build_sv_manifest.py --inventory /path/to/private/callsets.tsv \
+mkdir -p inputs manifests
+python scripts/build_sv_manifest.py --inventory inputs/callsets.tsv \
   --output manifests/sv_manifest.tsv
 cp examples/signatures.yaml config/private-signatures.yaml
 ~~~
 
-Set the manifest, output directory, Python path and account/partition. Use GRCh37 WGS callsets. The pipeline verifies source hashes and VCF primary-contig lengths before conversion. Groups run independently by cohort and caller.
+The manifest (`manifests/sv_manifest.tsv`) and Python environment (`sv_signatures/.venv/bin/python`) already match the defaults. Set your account/partition and output directory. Use GRCh37 WGS callsets. The pipeline verifies source hashes and VCF primary-contig lengths before conversion. Groups run independently by cohort and caller.
 
 ## Install Once
 
@@ -25,6 +25,8 @@ sv_signatures/.venv/bin/python -m pip install -r sv_signatures/requirements.lock
 ~~~
 
 COSMIC does not require R, ClusterSV, copy-number inputs or replication-timing reference construction.
+
+You can verify input files and the environment executable with `python scripts/workflow.py signatures --config config/private-signatures.yaml --check-files`. The same check runs automatically at launch.
 
 ## Launch COSMIC SV32
 

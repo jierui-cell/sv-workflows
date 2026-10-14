@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 ROOT=Path(__file__).resolve().parents[1]
-EXCLUDE={'.git','.venv','__pycache__','results','work','logs','resources','environments','containers','site','.nextflow','.nextflow-home'}
+EXCLUDE={'.git','.venv','__pycache__','inputs','results','work','logs','resources','environments','containers','site','.nextflow','.nextflow-home'}
 SENSITIVE_SUFFIXES={'.bam','.bai','.cram','.crai','.sif','.bin','.bigWig','.pt','.pem','.key'}
 def candidates():
     if (ROOT/'.git').exists():

@@ -13,22 +13,22 @@ modules_calling: null
 scheduler_options: ''
 max_parallel_preflight: 3
 compact_publish: false
-input: examples/samplesheet.tsv
-dataset_id: YOUR_DATASET_ID
-reference: /path/to/reference.fa
+input: inputs/samplesheet.tsv
+dataset_id: my_cohort
+reference: resources/reference/reference.fa
 outdir: results/my_run
 callers: preflight
 # Concurrent pairs per caller; override to match your scheduler allocation.
 max_parallel_callers: 3
 delly:
-  image: /path/to/delly-2.6.0--h3752d28_0.sif
+  image: containers/images/delly-2.6.0--h3752d28_0.sif
   cpus: 8
   memory_gb: 64
   time: 24h
   options: {map_qual: 1, minclip: 25, mad_cutoff: 9}
   filter_options: {quality: 300, altaf: 0.03, coverage: 10, controlcont: 0}
 svaba:
-  image: /path/to/svaba-1.2.0--h69ac913_1.sif
+  image: containers/images/svaba-1.2.0--h69ac913_1.sif
   cpus: 8
   memory_gb: 64
   time: 24h
@@ -36,7 +36,7 @@ svaba:
 gridss:
   somatic_filter: true
   somatic_filter_options: {allowable_normal_contamination: 0.03, min_normal_depth: 8, min_direct_read_support: 1, min_af: 0.005, min_qual: 350, max_homology_length: 50, max_inexact_homology_length: 50}
-  image: /path/to/gridss-2.13.2--h96c455f_6.sif
+  image: containers/images/gridss-2.13.2--h96c455f_6.sif
   cpus: 8
   memory_gb: 96
   time: 24h
@@ -44,11 +44,11 @@ gridss:
   otherjvmheap_gb: 4
   options: {}
 brass:
-  image: /path/to/brass-v6.3.4.sif
+  image: containers/images/brass-v6.3.4.sif
   cpus: 8
   memory_gb: 64
   time: 24h
-  bundle: /path/to/validated-brass-bundle
+  bundle: resources/brass/bundle
   missing_statistics_policy: native_defaults
   min_group: 2
   min_cn_change: 0.3
@@ -59,7 +59,7 @@ brass:
 pair_ids: ""
 slurm_account: null
 slurm_partition: null
-manta_image: /path/to/manta-1.6.0--py27h9948957_6.sif
+manta_image: containers/images/manta-1.6.0--py27h9948957_6.sif
 manta_cpus: 8
 manta_memory_gb: 64
 manta_time: 24h

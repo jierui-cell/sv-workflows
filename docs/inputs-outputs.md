@@ -2,17 +2,19 @@
 
 ## Paired Samplesheet
 
-Copy [examples/samplesheet.tsv](../examples/samplesheet.tsv) and edit it in private storage. The same schema supports WGS, WES and targeted runs; set assay type in YAML.
+Copy [examples/samplesheet.tsv](../examples/samplesheet.tsv) to `inputs/samplesheet.tsv`. Place or link BAMs/indexes in `inputs/bams/`, or override their paths. `inputs/` is Git-ignored. The same schema supports WGS, WES and targeted runs; set assay type in YAML.
 
 All nine TSV headers are retained: `patient_id`, `tumor_bam`, `tumor_bai`, `normal_bam`, `normal_bai`, `sex`, `tumor_phenotype`, `purity`, `ploidy`.
 
-The first five values are required. Metadata can be blank. Use absolute paths, unique IDs and tabs; keep trailing empty metadata fields. Provided purity is >0 and ≤1, and ploidy is >0. Schema and selected IDs are checked before tasks are created.
+The first five values are required. Metadata can be blank. BAM/index paths can be repository-root-relative (for example, `inputs/bams/TOY_PAIR.tumor.bam`) or absolute. Use unique IDs and tabs; keep trailing empty metadata fields. Provided purity is >0 and ≤1, and ploidy is >0. Schema and selected IDs are checked before tasks are created.
+
+File checks run before caller-task submission. The launcher leaves the original sheet untouched, saves `resolved-samplesheet.tsv` with absolute paths in the run logs, and uses a stable hashed copy under `.nextflow/input-manifests/` so repeated launches can resume cached tasks.
 
 Missing BRASS purity/ploidy uses `native_defaults`, recorded in effective settings as defaults rather than measured values.
 
 ## Signature Manifest
 
-The exact TSV header is `cohort pair_id caller vcf source_status source_sha256`. One row identifies one caller's output for one pair. The manifest builder takes the five-column inventory template, validates identifiers and computes source hashes.
+The exact TSV header is `cohort pair_id caller vcf source_status source_sha256`. One row identifies one caller's output for one pair. The manifest builder takes `inputs/callsets.tsv`, validates identifiers, resolves VCF paths to absolute paths, computes source hashes and writes `manifests/sv_manifest.tsv`.
 
 Use final somatic VCFs for signature input. GRIDSS joint calls remain a separate output before somatic filtering.
 

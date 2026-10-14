@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import yaml
+from check_resources import check_files, normalize_paths, write_resolved_samplesheet
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULTS = {'callers': 'defaults.yaml', 'signatures': 'signatures.yaml',
@@ -134,7 +135,9 @@ def main():
     ap.add_argument('--profile', choices=('local','slurm','pbs','lsf','sge','test'), default='slurm')
     ap.add_argument('--site-config', type=Path, help='Additional Nextflow scheduler configuration')
     ap.add_argument('--resume', nargs='?', const='latest')
-    ap.add_argument('--dry-run', action='store_true', help='Validate YAML and show command; submit nothing')
+    inspection = ap.add_mutually_exclusive_group()
+    inspection.add_argument('--dry-run', action='store_true', help='Validate YAML and show command; submit nothing')
+    inspection.add_argument('--check-files', action='store_true', help='Check selected input/resource files; submit nothing')
     ap.add_argument('--allow-local', action='store_true', help='Confirm a workstation/allocated node, never a login node')
     args = ap.parse_args()
     try:
@@ -144,6 +147,14 @@ def main():
         for item in args.set:
             override(config, item)
         validate(config, args.workflow)
+        config = normalize_paths(config,args.workflow,ROOT)
+        if args.check_files:
+            report = check_files(config,args.workflow,ROOT)
+            if args.site_config and not args.site_config.is_file():
+                report['issues'].append('Missing --site-config: '+str(args.site_config))
+                report['status'] = 'failed'
+            print(json.dumps(report,indent=2))
+            raise SystemExit(0 if report['status'] == 'passed' else 2)
         if args.profile == 'test' and args.workflow != 'test':
             raise ValueError('The test profile is reserved for synthetic installation tests')
         if args.profile == 'local' and args.workflow != 'test' and not args.allow_local:
@@ -167,9 +178,21 @@ def main():
             print(yaml.safe_dump(config, sort_keys=False))
             print(shlex.join(command))
             return
+        resource_report = None
+        if args.workflow in ('callers','signatures'):
+            resource_report = check_files(config,args.workflow,ROOT)
+            if resource_report['status'] != 'passed':
+                raise ValueError('Setup files are missing or invalid:\n'+'\n'.join(resource_report['issues'])+
+                                 '\nUse --check-files to inspect setup without submitting jobs.')
+        if args.site_config and not args.site_config.is_file():
+            raise ValueError('Missing --site-config: '+str(args.site_config))
         if not shutil.which('nextflow'):
             raise ValueError('Install Nextflow 25.10.7 and Java 17+ or load the corresponding HPC modules')
         log_dir.mkdir(parents=True)
+        if resource_report:
+            (log_dir/'setup-check.json').write_text(json.dumps(resource_report,indent=2)+'\n')
+        if args.workflow == 'callers':
+            config['input'] = str(write_resolved_samplesheet(config,ROOT,log_dir/'resolved-samplesheet.tsv'))
         (log_dir / 'resolved.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
         hashes = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                   for folder in ('scripts','modules','lib','sv_signatures','config')

@@ -4,6 +4,14 @@ Setup checks are optional for users and run automatically in CI where dependenci
 
 ## Offline Tests
 
+To inspect your actual setup without submitting jobs:
+
+~~~bash
+python scripts/workflow.py callers --config config/private-cohort.yaml --check-files
+~~~
+
+It checks nonempty/readable files for selected callers/pairs, including BAM indexes, reference indexes, images, BEDs and BRASS validation files. It does not stream BAMs, hash large inputs or execute callers. Real launches run the same check before Nextflow task submission. Unit tests cover missing files, empty images, broken links, caller/pair selection, standard filenames, relative paths, stable resume inputs and the no-submission failure path.
+
 ~~~bash
 python scripts/test_installation.py
 ~~~
@@ -19,7 +27,7 @@ python scripts/workflow.py test --profile test
 python scripts/test_main_stub.py --out results/main_stub_check01
 ~~~
 
-The toy task retains three SV events. The entry-point control runs actual `main.nf` preflight on indexed synthetic BAMs, exercises four caller stubs and verifies cached resume. Add `--manta-image /absolute/path/to/manta.sif` for Manta configuration. `--with-exclusions` checks region policies. Choose a fresh test output directory.
+The toy task retains three SV events. The entry-point control runs actual `main.nf` preflight on indexed synthetic BAMs, exercises four caller stubs and verifies cached resume. Add `--manta-image containers/images/manta-1.6.0--py27h9948957_6.sif` for Manta configuration. `--with-exclusions` checks region policies. Choose a fresh test output directory.
 
 ## Signature Controls
 

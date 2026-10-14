@@ -2,6 +2,8 @@
 
 Start with the [caller template](examples/cohort.yaml) or [signature template](examples/signatures.yaml). Copy it to a private YAML file and specify the values you want to change; versioned defaults fill in the rest.
 
+Resource paths are already defined for the [standard layout](README.md#standard-folder-layout). Relative YAML and BAM paths are repository-root-relative; absolute overrides remain supported. The image downloader writes exactly the filenames in the defaults.
+
 ## How Settings Are Resolved
 
 ```text
@@ -21,13 +23,13 @@ This example is a **preview only**: `--dry-run` prints the final configuration a
 
 | Parameter | Default / meaning |
 | --- | --- |
-| `input` | Example TSV; replace with your private paired samplesheet |
-| `reference` | Placeholder; replace with the exact alignment FASTA |
+| `input` | `inputs/samplesheet.tsv`; your paired samplesheet |
+| `reference` | `resources/reference/reference.fa`; place the alignment FASTA and matching indexes here |
 | `genome_build` | `GRCh37`; checked against primary reference chromosome lengths |
 | `sequencing_type` | `WGS`; `WES` / `targeted` use the implemented Manta capture route |
 | `target_bed` | `null`; optional WES / required targeted inclusion BED |
 | `exclude_bed` | `null`; optional validated 0-based BED, supported for Manta/DELLY/GRIDSS |
-| `dataset_id` | Placeholder label; required for caller benchmark identity |
+| `dataset_id` | `my_cohort`; set a distinct cohort label for benchmark identity |
 | `outdir` | `results/my_run`; choose a new directory for each experiment |
 | `callers` | `preflight`; comma-separated caller names without spaces |
 | `pair_ids` | Empty: all pairs; optionally `PAIR_001,PAIR_002` |
@@ -40,6 +42,21 @@ This example is a **preview only**: `--dry-run` prints the final configuration a
 | `compact_publish` | `false`; preserve native output hierarchy |
 
 Choose the backend with `--profile`; use `--site-config` for scheduler-specific Nextflow settings. The Slurm driver fixes the Slurm profile. `--resume SESSION_UUID` resumes an existing session. Local real-data execution requires `--allow-local` on an already allocated node/workstation.
+
+## Resource Paths and File Checks
+
+| Resource | Default location |
+| --- | --- |
+| Manta image | `containers/images/manta-1.6.0--py27h9948957_6.sif` |
+| DELLY image | `containers/images/delly-2.6.0--h3752d28_0.sif` |
+| SvABA image | `containers/images/svaba-1.2.0--h69ac913_1.sif` |
+| GRIDSS image | `containers/images/gridss-2.13.2--h96c455f_6.sif` |
+| BRASS image | `containers/images/brass-v6.3.4.sif` |
+| BRASS bundle | `resources/brass/bundle/` |
+
+Run `python scripts/workflow.py callers --config config/private-cohort.yaml --check-files` to inspect input/resource presence without submission. It requires only selected callers' files and selected pairs' BAMs/indexes. `--dry-run` instead previews YAML/commands; the flags serve different purposes.
+
+Real launches run file checks automatically before Nextflow starts, and save `setup-check.json` with the run logs. BAM structure/reference agreement is checked on compute nodes. The launcher saves an absolute-path samplesheet snapshot and uses a stable, content-addressed input copy for resume; your original samplesheet is unchanged.
 
 ## Caller Resources
 
@@ -103,7 +120,7 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 
 | Parameter | Default / meaning |
 | --- | --- |
-| `manifest` | Placeholder; six-column hashed VCF manifest |
+| `manifest` | `manifests/sv_manifest.tsv`; generated six-column hashed VCF manifest |
 | `genome_build` | `GRCh37`; active COSMIC SV32 route uses this assembly |
 | `sequencing_type` | `WGS`; genome-wide signature routes use WGS callsets |
 | `python` | `sv_signatures/.venv/bin/python`; separate pinned environment |

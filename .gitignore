@@ -1,4 +1,5 @@
 work/
+inputs/
 results/
 logs/
 resources/
@@ -18,6 +19,7 @@ __pycache__/
 *.bigWig
 *.pt
 config/private*.yaml
+config/private*.config
 manifests/
 site/
 dist/

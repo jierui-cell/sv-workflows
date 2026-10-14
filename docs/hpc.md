@@ -15,7 +15,7 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 
 The driver schedules per-pair preflight and caller tasks. Child-job account/partition come from your YAML. Its walltime covers the entire cohort, while each caller's `time` sets the individual task limit. Choose site-appropriate durations; upcoming maintenance can delay allocations that extend into the reserved window.
 
-The driver resolves the checkout from `SLURM_SUBMIT_DIR`. To submit from another directory, export `SV_WORKFLOW_ROOT=/absolute/path/to/sv-workflows`. `SV_PYTHON` can select the launcher's Python executable.
+The driver resolves the checkout from `SLURM_SUBMIT_DIR`. To submit from another directory, run `export SV_WORKFLOW_ROOT="$PWD"` while in the checkout first. `SV_PYTHON` can select the launcher's Python executable. Resource paths in YAML remain repository-root-relative.
 
 ## Capacity and Concurrency
 
@@ -27,7 +27,7 @@ The default Nextflow submission window is 24 outstanding tasks, including prefli
 executor.queueSize = 48
 ~~~
 
-Then add `--site-config /path/to/private/site.config` to the launch command. Increase or decrease `max_parallel_callers` independently. Caller CPU/RAM requests are in YAML; shared filesystem throughput and scratch capacity also affect throughput.
+Copy `config/site.nextflow.example.config` to `config/private-site.config`, set the submission window there, and add `--site-config config/private-site.config` to the launch command. Increase or decrease `max_parallel_callers` independently. Caller CPU/RAM requests are in YAML; shared filesystem throughput and scratch capacity also affect throughput.
 
 Tasks use persistent shared work directories for resume. A site can configure node-local scratch through its Nextflow settings and container mounts; keep results/logs on persistent storage.
 
@@ -37,7 +37,7 @@ Run the launcher inside your site's usual driver allocation:
 
 ~~~bash
 python scripts/workflow.py callers --config config/private-cohort.yaml \
-  --profile pbs --site-config /path/to/private/site.config
+  --profile pbs --site-config config/private-site.config
 ~~~
 
 Replace `pbs` with `lsf` or `sge`. Queue/accounting/parallel-environment settings belong in the site config and `scheduler_options`. Preflight recognizes these scheduler job environments.

@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import yaml
+from check_resources import write_resolved_samplesheet
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -58,8 +59,10 @@ def main():
         writer = csv.writer(handle,delimiter='\t')
         writer.writerow(['patient_id','tumor_bam','tumor_bai','normal_bam','normal_bai',
                          'sex','tumor_phenotype','purity','ploidy'])
-        writer.writerow(['SYNTHETIC',files['tumor'],str(files['tumor'])+'.bai',
-                         files['normal'],str(files['normal'])+'.bai','unknown','synthetic','',''])
+        writer.writerow(['SYNTHETIC',os.path.relpath(files['tumor'],ROOT),
+                         os.path.relpath(str(files['tumor'])+'.bai',ROOT),
+                         os.path.relpath(files['normal'],ROOT),
+                         os.path.relpath(str(files['normal'])+'.bai',ROOT),'unknown','synthetic','',''])
     cfg = yaml.safe_load((ROOT/'config/defaults.yaml').read_text())
     engine = args.container_engine or os.environ.get('SV_CONTAINER_ENGINE') or ('apptainer' if shutil.which('apptainer') else 'singularity')
     cfg['container_engine'] = engine
@@ -87,6 +90,7 @@ def main():
         cfg.update(manta_image=str(args.manta_image.resolve(strict=True)),manta_cpus=1,
                    manta_memory_gb=4,manta_workflow_memory_gb=2)
     cfg['callers'] = ','.join(callers)
+    cfg['input'] = str(write_resolved_samplesheet(cfg,ROOT,base/'resolved-samplesheet.tsv'))
     params = base/'params.yaml'; params.write_text(yaml.safe_dump(cfg))
     env = dict(os.environ,NXF_VER='25.10.7')
     env['SV_CONTAINER_ENGINE'] = engine
@@ -112,6 +116,11 @@ def main():
         diagnostic += ['-trace','nextflow.processor.TaskProcessor,nextflow.cache.CacheDB']
         command += ['-dump-hashes','json']
     run(diagnostic+['-log',base/'first.nextflow.log']+command+['-with-trace',base/'first.trace.tsv'],cwd=base,env=env)
+    cached_input = Path(cfg['input'])
+    input_mtime = cached_input.stat().st_mtime_ns
+    repeated_input = write_resolved_samplesheet(cfg,ROOT,base/'resume-samplesheet.tsv')
+    if repeated_input != cached_input or cached_input.stat().st_mtime_ns != input_mtime:
+        raise RuntimeError('Input normalization changed the cache path/mtime on resume')
     run(diagnostic+['-log',base/'resume.nextflow.log']+command+['-resume','-with-trace',base/'resume.trace.tsv'],cwd=base,env=env)
     with (base/'resume.trace.tsv').open() as handle:
         tasks = list(csv.DictReader(handle,delimiter='\t'))
@@ -125,6 +134,7 @@ def main():
                'scope':'real synthetic BAM preflight, task wiring and resume; no caller inference',
                'manta_container_configuration_tested':bool(args.manta_image),
                'exclusions_tested':args.with_exclusions}
+    summary['relative_bam_paths_and_stable_input_cache_tested'] = True
     if args.with_exclusions:
         for caller in [name for name in callers if name in ('delly','gridss')]:
             audit = json.loads((base/'results'/caller/'SYNTHETIC/output/regions.audit.json').read_text())

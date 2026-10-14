@@ -2,7 +2,7 @@
 method: cosmic_sv32  # Active route. PCAWG/ClusterSV is on hold.
 genome_build: GRCh37
 sequencing_type: WGS
-manifest: /path/to/private/sv_manifest.tsv
+manifest: manifests/sv_manifest.tsv
 outdir: ''  # Default: results/sv_signatures_corrected
 python: sv_signatures/.venv/bin/python
 groups: all  # Or melanoma:manta,pnet:manta
