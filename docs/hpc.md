@@ -55,6 +55,10 @@ python scripts/workflow.py callers --config config/private-cohort.yaml \
 
 Use the official Nextflow launcher, which supplies the JVM settings needed for persistent task caching.
 
-If a task fails, already submitted tasks finish and Nextflow reports the failure. Find the cause in the driver log and task `.command.err`, then relaunch the original command with `--resume SESSION_UUID`. Keep the original work directory. A new scientific experiment uses a new output directory.
+If a task fails, already submitted tasks finish and Nextflow reports the failure. Find the cause in the driver log and task `.command.err`, then restart with the same inputs, settings and output directory. Nextflow reuses matching completed tasks and runs those still needed.
+
+From the repository root, run `nextflow log` and copy the stopped run's `SESSION ID`. It identifies the Nextflow run, not a Slurm job. Append `--resume SESSION_UUID` to your original submission command, replacing `SESSION_UUID` with that ID and retaining any original `--set`/`--site-config` options. See the [complete resume example](../README.md#4-optional-restart-an-interrupted-run).
+
+Keep both `work/` (task files) and `.nextflow/` (history/cache). A parameter experiment is a new analysis and uses a new output directory, rather than restarting the original experiment.
 
 The optional [entry-point setup test](validation.md#entry-point-tests) checks preflight and cached resume. Module names can be set in YAML; leave them null when tools are already on PATH.

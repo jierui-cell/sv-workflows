@@ -87,31 +87,100 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 
 Eight pairs per caller permits up to 40 caller tasks. The default submission window is 24 outstanding tasks; use a [site config](docs/hpc.md#capacity-and-concurrency) to raise it. Adjust `max_parallel_callers` to your available capacity. For PBS, LSF, SGE or an allocated local node, see [HPC instructions](docs/hpc.md).
 
-### 3. Tune or resume
+### 3. Optional: preview or change settings
 
-Inspect or override settings without editing defaults:
+You can skip this section when using your existing settings. These commands help you check a configuration or plan a parameter experiment; they are separate from launching the cohort.
+
+**Preview your configuration without running anything:**
+
+~~~bash
+python scripts/workflow.py callers --config config/private-cohort.yaml --dry-run
+~~~
+
+This prints the final settings and the Nextflow command. **`--dry-run` does not submit jobs or call SVs.**
+
+**Preview different parameter values:**
 
 ~~~bash
 python scripts/workflow.py callers --config config/private-cohort.yaml \
   --set delly.options.map_qual=2 --set max_parallel_callers=8 --dry-run
 ~~~
 
-Resume an interrupted run by adding `--resume SESSION_UUID` to the original command. Keep its `work/` directory. For a parameter experiment, choose a new `outdir`.
+Here, `delly.options.map_qual=2` sets DELLY's minimum read mapping quality to 2, and `max_parallel_callers=8` allows up to eight pairs **per caller**, subject to scheduler limits. `--set` overrides a value for that invocation; it does not edit either YAML file. With `--dry-run`, this example is still only a preview.
+
+To **run** that experiment, put the settings in your `config/private-cohort.yaml` and submit the command in Step 2. Add or edit these values inside the file's existing sections, keeping your other settings:
+
+~~~yaml
+outdir: results/mapq2_run01
+max_parallel_callers: 8
+delly:
+  options:
+    map_qual: 2
+~~~
+
+The new `outdir` keeps the experiment's results separate from your previous run. Edit your private YAML, not `config/defaults.yaml`.
+
+### 4. Optional: restart an interrupted run
+
+Use this after a run stops—for example, because of maintenance or a failed task. Fix the reported problem, then restart with the **same inputs, settings and output directory**. Nextflow reuses completed tasks whose cached inputs/settings still match and runs the remaining tasks.
+
+From the repository root, find the stopped run's Nextflow session ID:
+
+~~~bash
+nextflow log
+~~~
+
+Copy its value from the `SESSION ID` column. This is a **Nextflow ID, not a Slurm job ID**. Resubmit your original command with `--resume` added:
+
+~~~bash
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=7-00:00:00 --output=logs/resume-%j.log \
+  scripts/run.slurm.sh callers --config config/private-cohort.yaml --resume SESSION_UUID
+~~~
+
+Replace `SESSION_UUID` with the ID you copied. Include any `--set` or `--site-config` options from the original run. Keep both `work/` (task files) and `.nextflow/` (execution history/cache) in the checkout. [Resume details](https://www.nextflow.io/docs/latest/cache-and-resume.html).
 
 ## Exome and Targeted Sequencing
 
-Use the same samplesheet, launcher, QC and benchmark outputs. **The implemented capture-assay route is Manta**, with native `--exome` settings for both WES and targeted sequencing.
+This section is for **whole-exome sequencing (WES)** or a **targeted gene panel**, rather than whole-genome sequencing (WGS). Use the same nine-column matched tumour–normal samplesheet. The pipeline calls SVs from these BAMs using **Manta**; the other four caller adapters currently use WGS settings.
+
+**1. Make a configuration for your exome or panel cohort.** Copy your already-filled cohort YAML so it retains the reference, image paths and HPC settings:
+
+~~~bash
+cp config/private-cohort.yaml config/private-capture.yaml
+~~~
+
+Update `input` to the exome/panel samplesheet, set a suitable `dataset_id`, and replace the following keys in that new file. For WES:
 
 ~~~yaml
-sequencing_type: WES  # WGS (default), WES or targeted
+sequencing_type: WES
 callers: manta
-target_bed: /absolute/path/to/capture_targets.bed
+target_bed: null  # Optional: replace with your capture-kit BED to restrict call regions.
 outdir: results/exome_run01
 ~~~
 
-`target_bed` is optional for WES and required for targeted panels. Use 0-based, half-open BED coordinates and reference-matched contig names. The workflow normalizes targets, applies optional exclusions, and builds Manta's indexed inclusion list; `bgzip` and `tabix` are needed on compute nodes when a BED is supplied. [Capture overlay](examples/capture.yaml).
+For a targeted panel, use these values instead:
 
-The other four adapters currently use WGS settings. Genome-wide signature analysis is for WGS callsets; capture assays need a capture-aware signature model. [Assay support](docs/workflow-status.md#assay-support).
+~~~yaml
+sequencing_type: targeted
+callers: manta
+target_bed: /absolute/path/to/panel_targets.bed
+outdir: results/panel_run01
+~~~
+
+`target_bed` lists the genomic intervals covered by your capture kit or panel, usually supplied by its manufacturer. It is optional for WES and required for targeted panels. Use BED coordinates: start is 0-based, end is excluded (for example, `1 100 200` covers 100 bases). Chromosome names must match the BAM/reference—for example, `1` and `chr1` are different names.
+
+**2. Submit the new configuration:**
+
+~~~bash
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=7-00:00:00 --output=logs/capture-%j.log \
+  scripts/run.slurm.sh callers --config config/private-capture.yaml
+~~~
+
+For either assay, the pipeline automatically sets Manta's `--exome` option; you do not need to add native Manta flags. When a target BED is supplied, it validates/merges the intervals, subtracts any configured exclusions, and prepares Manta's indexed call-region file. Have `bgzip` and `tabix` on the compute-node PATH for this preparation.
+
+You receive the same Manta VCF, QC and benchmark files described below. **This launches SV calling, not signature analysis.** The current COSMIC SV32 signature route accepts WGS callsets, not WES/panel callsets. [Assay support](docs/workflow-status.md#assay-support) · [Alternative two-file capture configuration](examples/capture.yaml).
 
 ## SV Signature Analysis
 

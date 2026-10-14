@@ -13,7 +13,9 @@ python scripts/workflow.py callers --config config/private-cohort.yaml \
   --set delly.options.map_qual=2 --set max_parallel_callers=8 --dry-run
 ```
 
-`--set` accepts dotted keys and YAML values. The launcher checks keys/types and saves resolved settings. Dry-run previews the configuration; compute tasks check BAM contents automatically.
+This example is a **preview only**: `--dry-run` prints the final configuration and command, without submitting jobs. `delly.options.map_qual=2` changes DELLY's minimum read mapping quality to 2; `max_parallel_callers=8` permits eight simultaneous pairs per caller, subject to scheduler limits.
+
+`--set` accepts dotted keys and YAML values. Overrides affect that invocation and do not edit your YAML files. For a persistent change, update your private YAML and submit it as usual. The launcher saves resolved settings for each real run; BAM checks happen automatically on compute nodes. [Preview, change and resume examples](README.md#3-optional-preview-or-change-settings).
 
 ## Inputs and Execution Settings
 
@@ -89,7 +91,11 @@ For SvABA or BRASS, use a separate run without this shared setting. Exclusions a
 
 ## Capture-Assay Settings
 
-Set `sequencing_type: WES` or `targeted` and `callers: manta`. Manta automatically receives `--exome`. A supplied `target_bed` is normalized and exclusions are subtracted before generating indexed `--callRegions`; have `bgzip`/`tabix` on compute nodes. Targeted panels require a BED; WES can run without one. [Capture template](examples/capture.yaml).
+For WES or a targeted panel, copy your completed cohort YAML to a private capture configuration, retain its reference/image/HPC settings, and update the input samplesheet and dataset label. Set `callers: manta` and choose `sequencing_type: WES` or `targeted`.
+
+`target_bed` is the capture kit/panel's genomic interval list. WES can use `target_bed: null`; targeted panels require a BED path. BED starts are 0-based and ends excluded; contig names must match the reference. Manta automatically receives `--exome`. For a supplied BED, the workflow merges intervals, subtracts exclusions and generates indexed `--callRegions`, using compute-node `bgzip`/`tabix`.
+
+Submit that private configuration with the same Slurm driver used for WGS. This runs Manta SV calling, not signatures; COSMIC SV32 remains a WGS-only route. [Complete WES/panel example](README.md#exome-and-targeted-sequencing).
 
 ## Signature Settings
 

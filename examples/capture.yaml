@@ -1,4 +1,8 @@
-# Overlay with examples/cohort.yaml: --config config/private-cohort.yaml --config examples/capture.yaml
+# Optional two-file alternative to the single-file README example.
+# Copy this to config/private-capture-overlay.yaml, then edit assay, BED and outdir.
+# Supply your completed base config FIRST, this partial overlay SECOND:
+# --config config/private-cohort.yaml --config config/private-capture-overlay.yaml
+# This file does not supply BAM/reference/image/HPC paths by itself.
 sequencing_type: WES  # WES | targeted
 callers: manta
 target_bed: null  # Optional for WES, required for targeted; exact reference contig names.
