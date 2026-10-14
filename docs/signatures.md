@@ -28,7 +28,7 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 
 ## Original ClusterSV, without copy number
 
-The pinned [ClusterSV](https://github.com/cancerit/ClusterSV) method reproduces the proximity clustering/footprint part of the [PCAWG structural-variation study](https://www.nature.com/articles/s41586-019-1913-9). It is not the newer cSVc classifier.
+The pinned [ClusterSV](https://github.com/cancerit/ClusterSV) method reproduces the proximity clustering/footprint part of the [PCAWG structural-variation study](https://www.nature.com/articles/s41586-019-1913-9).
 
 ```bash
 python sv_signatures/pcawg/prepare_sources.py
@@ -50,7 +50,7 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 
 Uses GRCh37 autosomes+X, upstream hg19 centromere/telomere masks, a 1-bp junction minimum and explicit orientation. Ambiguous inversion orientation is excluded rather than invented. Raw distance matrices are quadratic in junction count; high-burden samples need more memory/time. Inspect conversion/mask audits to understand differences from SV32 counts.
 
-Without copy-number information, clusters do **not** establish balanced rearrangements, templated insertions, chromoplexy, chromothripsis or foldback mechanisms. The CN-free release provides clusters/footprints/timing; a supported observable-feature summary is a next-stage extension, not the complete original 44-feature schema. The original PCAWG 16-signature numerical reference is not bundled and reference decomposition is deferred.
+Without copy-number information, clusters do **not** establish balanced rearrangements, templated insertions, chromoplexy, chromothripsis or foldback mechanisms. This route reports clusters, footprints and replication-timing annotations. It does not fit reference signatures.
 
 ## Replication timing
 
@@ -73,7 +73,3 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 ```
 
 Source URLs/checksums and output hashes are recorded. A verified reference may be reused across cohorts aligned to this assembly; do not recalculate category cutoffs per tumour. Other assemblies require an explicitly validated reference.
-
-## Advanced 44-feature and optional NMF paths
-
-Retained separately for compatibility with supplied, validated mechanistic classifications and annotations. `pcawg_stage=features` constructs the pinned **panprostate_2026_core** 44-channel profile, not a claim of complete CN-free PCAWG reproduction. Several features overlap or count clusters rather than junctions; totals need not equal SV count. This stage rejects missing classifications and annotation mismatches. `pcawg_stage=signatures` explicitly requests de-novo NMF, not fitting to the original PCAWG 16 signatures. Neither is automatically run in the CN-free workflow.

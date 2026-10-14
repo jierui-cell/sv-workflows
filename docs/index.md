@@ -19,7 +19,7 @@ The [configuration guide](../CONFIG_PARAMETERS.md) lists defaults and user overr
 | Cluster junctions without copy number | ClusterSV, footprints, timing annotations | [Signature methods](signatures.md) |
 | Check setup with synthetic data | Offline tests and Nextflow toy workflow | [Setup test](../README.md#test-your-installation) |
 
-Cue and JaBbA are research extensions; LUMPY is discontinued. See [readiness and limitations](workflow-status.md). No unavailable copy-number-dependent mechanism is fabricated.
+See [readiness and limitations](workflow-status.md) for the five callers and two analysis routes. ClusterSV reports clustering and annotation without inferring copy-number-dependent mechanisms.
 
 This is a development release based on workflows previously used for paired tumour–normal WGS. The portable refactor still requires a real-pair equivalence pilot; successful workflow completion does not establish clinical accuracy. Public examples are synthetic; no patient data, cohort results or clinical metadata are distributed.
 

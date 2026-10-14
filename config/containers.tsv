@@ -1,9 +1,7 @@
 tool	tag	uri
-svtyper	0.7.1--py_0	docker://quay.io/biocontainers/svtyper@sha256:1d88bf43b7d8084042074a059ef87694e554accd49896ca77b799d0134bc76e5
 bwa	0.7.19--h577a1d6_1	docker://quay.io/biocontainers/bwa@sha256:99a35e5ee4e9c329e8746c4689890b97a3ac5620cb36d374cba69ba52016e72a
 manta	1.6.0--py27h9948957_6	docker://quay.io/biocontainers/manta@sha256:48d0c2464fa0129935438c5cddec5f67c4b3d65e8f7a647f95164ee51662cc70
 delly	2.6.0--h3752d28_0	docker://quay.io/biocontainers/delly@sha256:4b6978924509c19272a77e98d58f2c77401349005251c288f2567321e369d641
-lumpy	0.3.1--3	docker://quay.io/biocontainers/lumpy-sv@sha256:e901ceabb9cf8a2f967035cee25e4cdc798a2fe1159e5a61ae5025d1da378406
 svaba	1.2.0--h69ac913_1	docker://quay.io/biocontainers/svaba@sha256:c12b1fff188fb141edfa3dc1a9c677c8c3cc947f7b5b359e8c9af4ca73304013
 gridss	2.13.2--h96c455f_6	docker://quay.io/biocontainers/gridss@sha256:ed2c8b0c48abe77713073f5cde3e35d4f0331ff6ea4fc8d5d84df5f6830ef99e
 brass	v6.3.4	docker://quay.io/wtsicgp/brass@sha256:2a195c341e518f16a12157b4e9e2346b60b97e63be2746d3f86606ba9689114e

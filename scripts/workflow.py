@@ -77,7 +77,7 @@ def validate(config, mode):
         raise ValueError('container_engine must be apptainer or singularity (SIF images)')
     if mode == 'callers':
         callers = config['callers'].split(',')
-        supported = {'preflight', 'manta', 'delly', 'svaba', 'gridss', 'brass', 'cue', 'jabba'}
+        supported = {'preflight', 'manta', 'delly', 'svaba', 'gridss', 'brass'}
         if not callers or set(callers) - supported:
             raise ValueError('Unknown/discontinued caller; supported: ' + ','.join(sorted(supported)))
         for caller in ('delly', 'svaba', 'gridss'):
@@ -92,7 +92,7 @@ def validate(config, mode):
             raise ValueError('Unknown signature method')
         if config['pcawg_stage'] not in ('clustering', 'features', 'signatures'):
             raise ValueError('Unknown pcawg_stage')
-        if config['method'] == 'pcawg_clustersv' and config['pcawg_stage'] != 'clustering' and not config['pcawg_classified_manifest']:
+        if config['method'] == 'pcawg_clustersv' and config['pcawg_stage'] != 'clustering' and not config.get('pcawg_classified_manifest'):
             raise ValueError('44 features require validated classifications; without copy number use pcawg_stage=clustering')
 
 def main():

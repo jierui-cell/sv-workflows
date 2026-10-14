@@ -1,6 +1,6 @@
 # Comparable runtime and memory
 
-All integrated caller processes use the same `measure_benchmark.py` wrapper. `elapsed_seconds` measures the recorded post-preflight caller task boundary, including preparation/filter/QC within that boundary. Queue delay and shared upstream reference preparation are not included. JaBbA graph-only runtime is not comparable to BAM-to-VCF calling unless coverage and upstream junction costs are added explicitly.
+All integrated caller processes use the same `measure_benchmark.py` wrapper. `elapsed_seconds` measures the recorded post-preflight caller task boundary, including preparation/filter/QC within that boundary. Queue delay and shared upstream reference preparation are not included.
 
 On the validated Slurm site, peak resident memory is sampled from the verified job cgroup, excluding unmapped page cache. On other backends, a job-isolated cgroup has not been demonstrated; the public recorder uses command-session process-tree RSS and records a different `memory_method_id`. This excludes unmapped cache but can double-count shared pages. Process PSS is also recorded when `/proc` permissions permit; missing values remain missing. One-second sampling can miss brief peaks.
 

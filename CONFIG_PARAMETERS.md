@@ -96,10 +96,10 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | `group_cpus`, `group_memory_gb`, `group_time` | `4`, `32`, `4h` |
 | `max_parallel_groups` | `4` simultaneous cohort/caller groups |
 
-Advanced `features`/`signatures` stages require supplied validated classifications and annotations. They implement a separate newer-paper profile, not inferred CN-free mechanisms. See [methods](docs/signatures.md).
+Use `pcawg_stage: clustering` for the ClusterSV route. It reports clustering and annotations, not inferred copy-number-dependent mechanisms. See [methods](docs/signatures.md).
 
-## Other Workflows
+## Replication-Timing Reference
 
 Timing reference setup uses [config/replication.yaml](config/replication.yaml): 1-kb bins, full per-track bin coverage and fixed genome-wide tertiles. Copy [examples/timing.yaml](examples/timing.yaml) to `config/private-timing.yaml`, then edit the site settings. It requires a separate environment and is independent of cohort/caller.
 
-Cue/JaBbA defaults require separately provisioned assets and validation. LUMPY configuration is historical only; the launcher rejects it. See [readiness](docs/workflow-status.md).
+See [readiness](docs/workflow-status.md) for the five callers and the two analysis routes.

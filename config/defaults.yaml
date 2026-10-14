@@ -49,60 +49,6 @@ brass:
   assembly: GRCh37
   protocol: WGS
   platform: ILLUMINA
-lumpy:
-  cpus: 4
-  memory_gb: 48
-  time: 30h
-  genotype_workers: 4
-  shared_tmp: /path/to/approved-large-scratch
-  filter_policy: config/lumpy-research-filter.json
-  pilot_pair_ids: [] # Historical adapter retained in source only; launch is disabled.
-cue:
-  image: /path/to/cue-python-3.7.17-bullseye.sif
-  python: /path/to/cue-py37/bin/python
-  source: /path/to/pinned-cue-source
-  source_commit: PINNED_COMMIT
-  model: /path/to/cue.v2.pt
-  cpus: 2
-  memory_gb: 64
-  time: 36h
-  pair_execution: sequential
-  comparison_config: config/cue-pair-comparison.yaml
-  bam_screen_config: config/cue-bam-screen.yaml
-  data_options:
-    chr_names: [chr1, chr2, chr3, chr4, chr5, chr6, chr7, chr8, chr9, chr10, chr11, chr12, chr13, chr14, chr15, chr16, chr17, chr18, chr19, chr20, chr21, chr22, chrX, chrY]
-    logging_level: INFO
-    min_sv_len: 4000
-    min_qual_score: 50
-    refine_disable: false
-  model_options: {gpu_ids: [], n_jobs_per_gpu: 1, n_cpus: 2, batch_size: 16, report_interval: 100}
-# JaBbA is graph inference from precomputed junctions and corrected coverage.
-# Its incremental runtime is not comparable to BAM-to-VCF callers without upstream costs.
-jabba:
-  inputs: /path/to/jabba_inputs.tsv
-  image: /path/to/jabba-0.0.2.sif
-  r_lib: /path/to/private/jabba-r-library
-  solver: cplex # or gurobi; use a licensed installation and test it first
-  cplex_dir: /path/to/CPLEX_Studio2220
-  coverage_mode: generate
-  fragcounter_image: /path/to/fragcounter-0.3.sif
-  cbs_image: /path/to/pinned-cbs.sif
-  cbs_source_commit: 287c27648caa0ae05bb613e6adba7066f5ba17c2
-  gcmap_dir: /path/to/hg19/gcmap
-  coverage_cpus: 4
-  coverage_memory_gb: 96
-  coverage_time: 36h
-  max_parallel_coverage: 1
-  coverage_options: {window: 1000, minmapq: 20, cnsignif: 0.00001}
-  upstream_junction_caller: svaba
-  coverage_method: fragCounter-corrected-tumor-normal-ratio-1kb
-  cpus: 12
-  subgraph_cores: 1 # upstream JaBbA's --cores; optimizer uses 12 threads per subgraph
-  solver_threads: 12 # pinned upstream default; fail if the requested allocation is too small
-  memory_gb: 64
-  time: 24h
-  use_metadata_purity_ploidy: false
-  options: {field: ratio, ppmethod: ppgrid, slack: 100, tilim: 6000, epgap: 0.00001, iterate: 0, cnsignif: 0.00001}
 pair_ids: ""
 slurm_account: null
 slurm_partition: null

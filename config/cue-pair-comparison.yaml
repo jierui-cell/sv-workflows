@@ -1,6 +1,0 @@
-# Exploratory comparison of Cue's independent single-sample predictions.
-# These settings do not define a clinically validated somatic filter.
-strict_endpoint_bp: 500
-exploratory_endpoint_bp: [500, 1000, 5000]
-min_reciprocal_overlap: 0.5
-primary_chromosomes_only: true

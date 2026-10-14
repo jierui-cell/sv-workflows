@@ -7,7 +7,7 @@ from pathlib import Path
 import statistics
 from datetime import datetime
 
-CALLERS = ('manta', 'delly', 'svaba', 'gridss', 'brass', 'lumpy', 'cue')
+CALLERS = ('manta', 'delly', 'svaba', 'gridss', 'brass')
 FIELDS = ('dataset_id', 'pair_id', 'caller', 'output_class', 'elapsed_seconds',
           'elapsed_hours', 'peak_sampled_resident_kib', 'peak_sampled_resident_gib',
           'memory_method_id', 'allocated_cpus', 'requested_memory_gb',
@@ -149,8 +149,7 @@ def summarize(root, destination, callers, samplesheet=None, allow_incomplete=Fal
                 'missing_runs': len(missing), 'issues': issues,
                 'limitations': ['Cgroup resident memory is sampled once per second, not an exact peak; shared mapped pages can be charged elsewhere',
                                 'overlap count sees only benchmark tasks in this outdir; other cluster/storage load is unmeasured',
-                                'Different CPU allocations and caller-specific algorithms affect runtime',
-                                'Cue and LUMPY outputs are research candidates, not validated somatic calls']}
+                                'Different CPU allocations and caller-specific algorithms affect runtime']}
     (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     return manifest
 

@@ -32,7 +32,7 @@ Matched tumour + normal BAMs → Input checks → Selected SV callers → VCFs +
                                                               and timing annotations
 ```
 
-**Research use only.** This public version has passed synthetic tests; validate it on a real matched tumour–normal pair before expanding to a cohort. ClusterSV without copy-number data (CN-free) is **not** the full mechanistic PCAWG 44-feature classifier or a fit to its 16 signatures. Cue and JaBbA remain [research extensions](docs/workflow-status.md); LUMPY is discontinued.
+**Research use only.** This public version has passed synthetic tests; validate it on a real matched tumour–normal pair before expanding to a cohort. ClusterSV without copy-number data (CN-free) reports clusters and annotations, rather than reference-signature exposures. See [readiness and limitations](docs/workflow-status.md).
 
 ## Requirements
 
@@ -219,7 +219,7 @@ Edit that config and install the separate [signature environments/references](do
 | Choose this route | You receive | Interpretation |
 | --- | --- | --- |
 | COSMIC SV32 | 32-channel counts and SV1–SV12 exposures | Fit to reference signatures |
-| ClusterSV | Clusters, footprints and timing annotations | Without copy-number data; not PCAWG 16-signature decomposition |
+| ClusterSV | Clusters, footprints and timing annotations | Clustering and annotation without copy-number data |
 
 Choose **one** analysis route:
 
@@ -236,7 +236,7 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
   --set method=pcawg_clustersv --set pcawg_stage=clustering --set outdir=results/clustersv_run01
 ```
 
-The methods have different inclusion rules and outputs. Do not equate their event totals or interpret CN-free clusters as established complex-event mechanisms. The original PCAWG 16-signature reference matrix is not bundled.
+The methods have different inclusion rules and outputs. Do not equate their event totals or interpret CN-free clusters as established complex-event mechanisms. Only COSMIC SV32 fits reference signatures; the ClusterSV route returns clustering and annotation results.
 
 ## Retrieve Your Results
 
@@ -279,6 +279,6 @@ Paths use `compact_publish: false`; signature smoke/pilot selections add groupin
 
 ## License
 
-Our independent code is [MIT-licensed](LICENSE). Upstream tools, models, scientific sources and licensed solvers retain their own terms; see [third-party notices](THIRD_PARTY.md).
+Our independent code is [MIT-licensed](LICENSE). Upstream tools, scientific sources and reference resources retain their own terms; see [third-party notices](THIRD_PARTY.md).
 
 Only code, documentation and synthetic examples are published. **Do not commit real BAMs/VCFs, sample metadata, private configs, credentials or runtime logs.**
