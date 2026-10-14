@@ -89,9 +89,11 @@ process SIGNATURE_GROUP {
 }
 
 workflow {
+    if (params.method == 'pcawg_clustersv')
+        error 'PCAWG/ClusterSV signature analysis is on hold; use method=cosmic_sv32'
     if (params.genome_build != 'GRCh37') error 'Supported signature routes require GRCh37; other assemblies are not implemented'
     if (params.sequencing_type != 'WGS') error 'Genome-wide signature methods require WGS; capture assays need a capture-aware model'
-    if (!(params.method in ['cosmic_sv32', 'pcawg_clustersv'])) error 'method must be cosmic_sv32 or pcawg_clustersv'
+    if (params.method != 'cosmic_sv32') error 'The active signature method is cosmic_sv32'
     if (!(params.pcawg_stage in ['clustering', 'features', 'signatures'])) error 'pcawg_stage must be clustering, features or signatures'
     if (!(params.pcawg_timing_source in ['none','reference'])) error 'pcawg_timing_source must be none or reference'
     def resolvedOutdir = file(params.outdir ?: "${projectDir}/../results/${params.method == 'cosmic_sv32' ? 'sv_signatures_corrected' : 'sv_signatures_pcawg'}").toAbsolutePath()

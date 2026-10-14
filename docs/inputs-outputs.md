@@ -39,9 +39,7 @@ Signature results use `OUTDIR/COHORT/CALLER/group_output/`. Optional pair select
 
 COSMIC exports `SV32.matrix.tsv` and `SV32.exposures.tsv`.
 
-ClusterSV exports per-junction cluster/footprint tables and optional timing annotations. The `features` stage adds `ClusterSV38.matrix.tsv`, `feature_events.tsv` and feature QC. The `signatures` stage adds `ClusterSV.NMF.signatures.tsv`, `activities.tsv` and `fractions.tsv` with the same prefix, plus rank/reconstruction QC and the fitted R object.
-
-NMF profiles are features × components; activities are samples × components. Zero-count samples retain zero activity. [Feature definitions](signatures.md#cn-free-features-and-de-novo-nmf).
+PCAWG/ClusterSV signature analysis is on hold. Earlier clustering, feature and NMF outputs are retained; no new analysis is being run through that route. [Signature status](signatures.md#pcawg-status).
 
 ## Provenance
 

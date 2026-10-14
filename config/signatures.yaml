@@ -1,9 +1,9 @@
 # Use scripts/workflow.py signatures with a private overlay from examples/signatures.yaml.
-method: cosmic_sv32  # cosmic_sv32 | pcawg_clustersv
+method: cosmic_sv32  # Active route. PCAWG/ClusterSV is on hold.
 genome_build: GRCh37
 sequencing_type: WGS
 manifest: /path/to/private/sv_manifest.tsv
-outdir: ''  # Default: results/sv_signatures_corrected OR results/sv_signatures_pcawg
+outdir: ''  # Default: results/sv_signatures_corrected
 python: sv_signatures/.venv/bin/python
 groups: all  # Or melanoma:manta,pnet:manta
 pair_id: ''
@@ -11,7 +11,8 @@ pair_ids: ''
 min_size_bp: 1000  # COSMIC intrachromosomal minimum
 cosmic_version: 3.6
 skip_fit: false
-pcawg_stage: signatures  # clustering | features | signatures (CN-free de novo NMF).
+# PCAWG settings are retained for future work; the route is currently disabled.
+pcawg_stage: signatures
 pcawg_rank_min: 2
 pcawg_rank_max: 10
 pcawg_rank: 0  # 0 selects from the rank survey; >=2 fixes the rank.

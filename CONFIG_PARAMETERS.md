@@ -98,33 +98,24 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | Parameter | Default / meaning |
 | --- | --- |
 | `manifest` | Placeholder; six-column hashed VCF manifest |
-| `genome_build` | `GRCh37`; both supported analysis routes reject other assemblies |
+| `genome_build` | `GRCh37`; active COSMIC SV32 route uses this assembly |
 | `sequencing_type` | `WGS`; genome-wide signature routes use WGS callsets |
 | `python` | `sv_signatures/.venv/bin/python`; separate pinned environment |
-| `method` | `cosmic_sv32` or `pcawg_clustersv` |
+| `method` | `cosmic_sv32`; PCAWG/ClusterSV is on hold |
 | `outdir` | Empty: method-specific default; use an explicit new path for experiments |
 | `groups` | `all`; optionally comma-separated `cohort:caller` names |
 | `pair_id`, `pair_ids` | Empty: all pairs; optional single-pair or multi-pair selection |
 | `min_size_bp` | `1000`; COSMIC intrachromosomal minimum |
 | `cosmic_version` | `3.6`; SV1–SV12 reference fitting |
 | `skip_fit` | `false`; true constructs SV32 counts only |
-| `pcawg_stage` | `signatures`; CN-free clustering → features → de novo NMF; earlier stops: `features`, `clustering` |
-| `pcawg_rank` | `0`: automatic rank selection; integer ≥2 fixes rank |
-| `pcawg_rank_min`, `pcawg_rank_max` | `2`, `10`; automatic survey limits |
-| `pcawg_nrun`, `pcawg_seed` | `100`, `1234`; repeated fits and reproducible seed |
-| `pcawg_nmf_epsilon`, `pcawg_nmf_max_iter` | `2.220446049250313e-16`, `2000`; factor floor and iteration cap |
-| `pcawg_min_size_bp` | `1`; preserve short oriented junctions |
-| `pcawg_fdr_first`, `pcawg_fdr_final`, `pcawg_footprint_fdr` | `0.01`, `0.05`, `0.01` |
-| `pcawg_mask_policy` | `local_cen_telo_exclusion`; local endpoint filtering, or `primary_only` |
-| `pcawg_timing_source` | `none`; optional `reference` adds verified fixed-tertile annotation |
 | `account`, `partition` | `null`; signature scheduler keys use these names |
 | `group_cpus`, `group_memory_gb`, `group_time` | `4`, `32`, `4h` |
 | `max_parallel_groups` | `4` simultaneous cohort/caller groups |
 
-ClusterSV defaults to full CN-free de novo extraction with 38 channels. No copy-number or classified-event manifest is needed. Counts, learned profiles, sample activities and rank/reconstruction QC are saved. See [methods](docs/signatures.md).
+PCAWG/ClusterSV signature analysis is on hold, including clustering, feature construction and NMF. Its settings remain in the defaults for future work, but selecting `method=pcawg_clustersv` stops before task submission. COSMIC settings and caller workflows are unchanged. See [status](docs/signatures.md#pcawg-status).
 
 ## Replication-Timing Reference
 
-Timing reference setup uses [config/replication.yaml](config/replication.yaml): 1-kb bins, full per-track bin coverage and fixed genome-wide tertiles. Copy [examples/timing.yaml](examples/timing.yaml) to `config/private-timing.yaml`, then edit the site settings. It requires a separate environment and is independent of cohort/caller.
+The replication-timing implementation and [configuration](config/replication.yaml) are retained with the paused PCAWG work. No timing-reference construction is needed for COSMIC SV32.
 
 See [method scope](docs/workflow-status.md) for assay/build support and output interpretation.

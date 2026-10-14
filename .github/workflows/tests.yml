@@ -21,17 +21,11 @@ jobs:
         with:
           version: '25.10.7'
       - run: python -m pip install -r requirements.txt -r requirements-docs.txt
-      - run: python -m pip install -r sv_signatures/requirements-clustersv.lock.txt
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends samtools bcftools r-base r-cran-gtools r-cran-doparallel r-cran-r.utils r-cran-nmf r-cran-jsonlite
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends samtools bcftools
       - run: python scripts/test_installation.py
       - run: python scripts/audit_publication.py
       - run: python scripts/workflow.py test --profile test
       - run: python scripts/test_main_stub.py --out results/ci-main-stub
       - run: python scripts/test_main_stub.py --out results/ci-region-stub --with-exclusions
-      - run: python sv_signatures/pcawg/prepare_sources.py --clustersv-only
-      - run: python sv_signatures/pcawg/test_clustersv.py --pipeline-root "$PWD" --clustering-only --rscript Rscript
-      - run: Rscript sv_signatures/pcawg/test_numerics.R "$PWD"
-      - run: python sv_signatures/pcawg/test_nmf_exports.py
-      - run: python scripts/test_clustersv_workflow.py --out results/ci-clustersv-nmf
-      - run: python scripts/test_clustersv_workflow.py --out results/ci-clustersv-nmf-no-timing --without-timing
+      # PCAWG/ClusterSV numerical workflows are on hold; source/tests are retained.
       - run: python scripts/build_docs.py

@@ -8,7 +8,7 @@
 | GRIDSS | Joint calls and native somatic subsets | Baseline without a panel of normals or BSgenome |
 | BRASS | Annotated paired SVs | Validated GRCh37 resource bundle; missing statistics use labeled native defaults |
 | COSMIC SV32 | Counts and SV1–SV12 exposures | GRCh37 WGS, caller-specific reference fitting |
-| ClusterSV + NMF | Clusters, footprints, CN-free counts, de novo signatures and optional timing | GRCh37 WGS; local 38-channel feature scheme |
+| PCAWG/ClusterSV | On hold | No clustering/feature/NMF analysis; source and prior outputs retained |
 
 Caller preflight checks declared GRCh37/GRCh38 reference dictionaries. BRASS's bundle adapter currently uses GRCh37. Signature routes use GRCh37 references.
 
@@ -30,8 +30,8 @@ Genome-wide signature methods use genome-wide breakpoint distributions. Capture 
 
 ## Validation Coverage
 
-The source workflows have processed paired WGS cohorts. The portable entry point has synthetic preflight/stub/resume tests and pinned ClusterSV numerical controls; its real-pair equivalence run is not yet completed. De novo NMF controls exercise synthetic counts and exports. [Validation details](validation.md).
+The source workflows have processed paired WGS cohorts. The portable entry point has synthetic preflight/stub/resume tests; its real-pair equivalence run is not yet completed. Earlier ClusterSV/NMF numerical checks are retained as historical evidence, but those workflows are no longer executed in active CI. [Validation details](validation.md).
 
 Slurm is compute-node tested. PBS/LSF/SGE are site templates; local execution works on workstations or allocated nodes. Public examples are synthetic and contain no patient data.
 
-CN-free cluster membership does not establish copy-number-dependent mechanisms. Replication-timing tertiles and de novo rank selection are recorded analysis policies, not published PCAWG reference definitions.
+PCAWG/ClusterSV signature analysis and its CN-free extension will be revisited later. COSMIC SV32 and all five caller workflows remain active.

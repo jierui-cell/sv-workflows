@@ -24,8 +24,8 @@ class PortabilityTests(unittest.TestCase):
         cfg=merge(read_yaml(ROOT/'config/signatures.yaml'),read_yaml(ROOT/'examples/signatures.yaml'))
         validate(cfg,'signatures')
         cfg['method']='pcawg_clustersv'
-        validate(cfg,'signatures')
-        self.assertEqual(cfg['pcawg_stage'],'signatures')
+        with self.assertRaisesRegex(ValueError,'on hold'):
+            validate(cfg,'signatures')
 
     def test_copyable_timing_template(self):
         cfg=merge(read_yaml(ROOT/'config/replication.yaml'),read_yaml(ROOT/'examples/timing.yaml'))
@@ -60,12 +60,13 @@ class PortabilityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'Duplicate'):
                 read_yaml(p)
 
-    def test_cnfree_stages_and_retired_caller(self):
+    def test_paused_stages_and_retired_caller(self):
         cfg=read_yaml(ROOT/'config/signatures.yaml')
         cfg.update(method='pcawg_clustersv',pcawg_stage='features')
-        validate(cfg,'signatures')
-        cfg.update(pcawg_stage='signatures')
-        validate(cfg,'signatures')
+        for stage in ('clustering','features','signatures'):
+            cfg['pcawg_stage']=stage
+            with self.assertRaisesRegex(ValueError,'on hold'):
+                validate(cfg,'signatures')
         cfg=read_yaml(ROOT/'config/defaults.yaml'); cfg['callers']='lumpy'
         with self.assertRaisesRegex(ValueError,'discontinued'):
             validate(cfg,'callers')

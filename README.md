@@ -13,16 +13,14 @@
 
 Run **Manta, DELLY, GRIDSS, SvABA and BRASS** across a matched tumour–normal cohort. Nextflow handles scheduling, automatic input checks, parallel execution and resume. YAML gives you one place to select callers, tune parameters and size resources. Each run saves its settings, commands, QC and comparable runtime/memory records.
 
-Choose **COSMIC SV32 reference fitting**, or **ClusterSV + de novo NMF** to discover cohort-specific SV patterns without copy-number inputs.
+Use **COSMIC SV32 reference fitting** for SV signature analysis. **PCAWG/ClusterSV signature analysis is on hold**, including its feature/NMF extension. The implementation is preserved for later review; that route is not currently being run.
 
 ~~~text
 Paired BAMs → Automatic checks → Five SV callers → VCFs + QC + benchmarks
                                                        │
-                                  ┌────────────────────┴─────────────────┐
-                                  COSMIC SV32                            ClusterSV
-                                  32-channel counts                      Clusters + footprints
-                                  → SV1–SV12 exposures                   → CN-free 38-channel counts
-                                                                         → De novo NMF signatures
+                                                   COSMIC SV32
+                                                   32-channel counts
+                                                   → SV1–SV12 exposures
 ~~~
 
 The framework is for research analysis. [Method scope](docs/workflow-status.md) describes reference builds, assay support and output interpretation.
@@ -126,27 +124,20 @@ python scripts/build_sv_manifest.py --inventory /path/to/private/callsets.tsv \
 cp examples/signatures.yaml config/private-signatures.yaml
 ~~~
 
-Set the manifest and HPC values, complete the one-time [signature setup](docs/signatures.md), and choose a route:
+Set the manifest and HPC values, complete the one-time [signature setup](docs/signatures.md), and run COSMIC SV32:
 
 | Route | What it does | Main outputs |
 | --- | --- | --- |
 | `cosmic_sv32` | SV32 counts → COSMIC SV1–SV12 fit | Count matrix and sample exposures |
-| `pcawg_clustersv` | ClusterSV → CN-free features → de novo NMF | Clusters, footprints, 38-channel counts, signatures and activities; optional timing |
 
 ~~~bash
 # COSMIC reference fitting
 sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
   --cpus-per-task=1 --mem=4G --time=24:00:00 --output=logs/cosmic-%j.log \
   scripts/run.slurm.sh signatures --config config/private-signatures.yaml --set method=cosmic_sv32
-
-# ClusterSV + de novo NMF
-sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
-  --cpus-per-task=1 --mem=4G --time=24:00:00 --output=logs/clustersv-%j.log \
-  scripts/run.slurm.sh signatures --config config/private-signatures.yaml \
-  --set method=pcawg_clustersv --set outdir=results/clustersv_run01
 ~~~
 
-Groups run independently by cohort and caller. NMF selects a rank from repeated seeded fits; `--set pcawg_rank=3` selects three components. Use `pcawg_stage=features` or `clustering` to stop earlier. Timing is optional and requires no setup for the default de novo route. The CN-free 38-channel scheme and `cSV1…` labels describe cohort-specific patterns, not the published PCAWG 44-feature matrix or reference signatures. [Feature definitions and NMF](docs/signatures.md#cn-free-features-and-de-novo-nmf).
+Groups run independently by cohort and caller. The PCAWG/ClusterSV route is paused; selecting `method=pcawg_clustersv` reports the hold before submitting analysis tasks. Existing code and outputs remain preserved. [Signature guide and status](docs/signatures.md).
 
 ## Retrieve Your Results
 
@@ -162,8 +153,6 @@ Under your configured `outdir`:
 | BRASS annotated calls | `brass/PAIR/output/callset/calls/*.annot.vcf.gz` |
 | Runtime / memory | Manta: `manta/PAIR/benchmark.json`; others: `CALLER/PAIR/output/benchmark.json` |
 | COSMIC counts / exposures | `COHORT/CALLER/group_output/SV32.matrix.tsv`, `SV32.exposures.tsv` |
-| ClusterSV counts | `COHORT/CALLER/group_output/ClusterSV38.matrix.tsv` |
-| De novo signatures / activities | `COHORT/CALLER/group_output/ClusterSV.NMF.signatures.tsv`, `ClusterSV.NMF.activities.tsv` |
 | Settings / logs | `logs/WORKFLOW-TIMESTAMP/` |
 
 Native outputs and QC remain alongside these files. GRIDSS's separate `joint.vcf.gz` contains joint calls before somatic filtering. [Output formats](docs/inputs-outputs.md) · [Performance exports](docs/performance.md).
@@ -180,7 +169,7 @@ python scripts/workflow.py test --profile test
 python scripts/test_main_stub.py --out results/main_stub_check01
 ~~~
 
-CI runs these checks plus ClusterSV and NMF controls. See [tests and scientific controls](docs/validation.md).
+CI checks installation, caller wiring, cached resume and publication. PCAWG/ClusterSV numerical workflows are paused. See [tests and scientific controls](docs/validation.md).
 
 ## Further Documentation
 

@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import sys
+import subprocess
 import unittest
 import yaml
 
@@ -9,6 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 CALLERS = {'manta', 'delly', 'gridss', 'svaba', 'brass'}
 
 class PublicScopeTests(unittest.TestCase):
+    def test_paused_signature_route_submits_nothing(self):
+        result = subprocess.run([sys.executable,str(ROOT/'scripts/workflow.py'),'signatures',
+                                 '--set','method=pcawg_clustersv','--dry-run'],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('on hold',result.stderr)
+        self.assertEqual(result.stdout,'')
+        self.assertIn('signature analysis is on hold',(ROOT/'sv_signatures/main.nf').read_text())
+        workflow = (ROOT/'.github/workflows/tests.yml').read_text()
+        self.assertNotIn('test_nmf_exports.py',workflow)
+        self.assertNotIn('test_clustersv_workflow.py',workflow)
+
     def test_public_documents_do_not_advertise_unused_workflows(self):
         sources = [ROOT/'README.md', ROOT/'CONFIG_PARAMETERS.md', ROOT/'THIRD_PARTY.md']
         sources += list((ROOT/'docs').glob('*.md'))

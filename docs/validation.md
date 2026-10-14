@@ -23,7 +23,7 @@ The toy task retains three SV events. The entry-point control runs actual `main.
 
 ## Signature Controls
 
-CI exercises original ClusterSV clustering, equivalence against upstream defaults, empty/singleton inputs, CN-free feature counting and synthetic NMF export/reconstruction. The locked R environment supports the same controls on HPC.
+PCAWG/ClusterSV numerical workflows are on hold and are not executed in current CI. Earlier controls and their results are retained for future review. Lightweight regression tests check that the paused route submits no tasks.
 
 COSMIC's numerical clustering control checks actual clustered/nonclustered assignment. These controls test software and numerical behavior; they are separate from biological benchmarking.
 

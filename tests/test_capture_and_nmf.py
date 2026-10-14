@@ -76,7 +76,7 @@ class CaptureAndNMFTTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'membership'): build(root,['A','Z'])
 
     def test_nmf_settings_and_capture_signature_guard(self):
-        cfg = read_yaml(ROOT/'config/signatures.yaml'); cfg['method'] = 'pcawg_clustersv'
+        cfg = read_yaml(ROOT/'config/signatures.yaml')
         self.assertEqual(cfg['pcawg_timing_source'],'none')
         cfg['pcawg_timing_source'] = 'reference'; validate(cfg,'signatures')
         cfg['pcawg_timing_source'] = 'none'

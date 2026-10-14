@@ -102,9 +102,11 @@ def validate(config, mode):
         if config['manta_workflow_memory_gb'] >= config['manta_memory_gb']:
             raise ValueError('Manta workflow memory must be below the allocated memory')
     if mode == 'signatures':
+        if config['method'] == 'pcawg_clustersv':
+            raise ValueError('PCAWG/ClusterSV signature analysis is on hold; use method=cosmic_sv32')
         if config['genome_build'] != 'GRCh37':
             raise ValueError('The supported signature routes require genome_build=GRCh37')
-        if config['method'] not in ('cosmic_sv32', 'pcawg_clustersv'):
+        if config['method'] != 'cosmic_sv32':
             raise ValueError('Unknown signature method')
         if config['pcawg_stage'] not in ('clustering', 'features', 'signatures'):
             raise ValueError('Unknown pcawg_stage')
