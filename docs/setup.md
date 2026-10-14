@@ -7,10 +7,13 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 python scripts/test_installation.py
+# HPC: run the following toy task only inside an allocated compute session.
 python scripts/workflow.py test --profile test
 ```
 
-Real tasks require host `python3`, `samtools`, `bcftools` and the selected SIF runtime. BRASS additionally uses `jq`, `patch`, `realpath`, `sha256sum` and standard Linux utilities. Put the activated environment and modules in the compute-node environment, not only your login shell. Docker execution is not implemented: these adapters explicitly use the Singularity/Apptainer CLI.
+For a batch allocation, use the [Slurm toy-test example](../README.md#test-your-installation). Container downloads and WGS reference indexing are not needed for this synthetic test.
+
+Real tasks require host `python3`, `samtools`, `bcftools` and the selected SIF runtime. Generating BWA reference indexes requires `bwa`; load/install it before the indexing commands below. BRASS additionally uses `jq`, `patch`, `realpath`, `sha256sum` and standard Linux utilities. Put the activated environment and modules in the compute-node environment, not only your login shell. Docker execution is not implemented: these adapters explicitly use the Singularity/Apptainer CLI.
 
 ## Caller containers
 

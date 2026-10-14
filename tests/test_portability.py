@@ -26,6 +26,12 @@ class PortabilityTests(unittest.TestCase):
         validate(cfg,'signatures')
         self.assertEqual(cfg['pcawg_stage'],'clustering')
 
+    def test_copyable_timing_template(self):
+        cfg=merge(read_yaml(ROOT/'config/replication.yaml'),read_yaml(ROOT/'examples/timing.yaml'))
+        self.assertEqual(cfg['timing_label_policy'],'tertiles')
+        self.assertEqual(cfg['timing_bin_bp'],1000)
+        self.assertEqual(cfg['timing_min_coverage'],1.0)
+
     def test_documented_toy_output(self):
         sys.path.insert(0,str(ROOT/'sv_signatures'))
         from vcf_to_bedpe import convert

@@ -2,9 +2,13 @@
 
 ## Paired WGS samplesheet
 
-Use unquoted TSV with these nine required headers:
+Copy the already tab-separated [samplesheet template](../examples/samplesheet.tsv) to an existing private folder outside the checkout, then edit it:
 
-`patient_id tumor_bam tumor_bai normal_bam normal_bai sex tumor_phenotype purity ploidy`
+```bash
+cp examples/samplesheet.tsv /path/to/private/paired_samples.tsv
+```
+
+Keep all nine headers and the tabs between columns. The required headers are `patient_id`, `tumor_bam`, `tumor_bai`, `normal_bam`, `normal_bai`, `sex`, `tumor_phenotype`, `purity` and `ploidy`. Do not remove trailing empty metadata fields. The parser accepts unquoted TSV, not space-delimited text or CSV.
 
 The first five values must be present. Metadata values may be blank and generate warnings; no purity/ploidy is inferred from missingness. Purity must be >0 and ≤1 when provided; ploidy must be >0. Headers, row widths, duplicate/unsafe pair IDs, same-file pairings, selected IDs and metadata ranges are validated before creating task channels. BAM biological identity still needs separate confirmation. Use absolute paths.
 

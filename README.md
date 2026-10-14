@@ -17,7 +17,7 @@ This open-source workflow runs multiple SV callers on matched tumour and normal 
 **Key features:**
 
 - Five core callers: **Manta, DELLY, GRIDSS, SvABA and BRASS**.
-- Two analysis routes: **COSMIC SV32 refitting** or **CN-free ClusterSV clustering and annotations**.
+- Two analysis routes: **COSMIC SV32 refitting** or **ClusterSV clustering without copy-number data**.
 - YAML defaults and user overrides, pinned software identities, input checks and resume support.
 - Synthetic setup tests, caller QC, command logs and performance records.
 
@@ -32,7 +32,7 @@ Matched tumour + normal BAMs → Input checks → Selected SV callers → VCFs +
                                                               and timing annotations
 ```
 
-**Research use only.** The portable refactor requires a real-pair equivalence pilot before cohort expansion. CN-free ClusterSV is **not** the full mechanistic PCAWG 44-feature classifier or a fit to its 16 signatures. Cue and JaBbA remain [research extensions](docs/workflow-status.md); LUMPY is discontinued.
+**Research use only.** This public version has passed synthetic tests; validate it on a real matched tumour–normal pair before expanding to a cohort. ClusterSV without copy-number data (CN-free) is **not** the full mechanistic PCAWG 44-feature classifier or a fit to its 16 signatures. Cue and JaBbA remain [research extensions](docs/workflow-status.md); LUMPY is discontinued.
 
 ## Requirements
 
@@ -57,7 +57,26 @@ nextflow -version
 python scripts/test_installation.py
 ```
 
-The offline tests should finish with `OK`. Real caller tasks additionally need **samtools**, **bcftools**, and **Apptainer or Singularity** in the compute environment. BRASS has extra prerequisites; see [installation details](docs/setup.md).
+The offline tests should finish with `OK`. Real caller tasks additionally need **samtools**, **bcftools**, and **Apptainer or Singularity** in the compute environment. Building the reference indexes below also requires **BWA**. BRASS has extra prerequisites; see [installation details](docs/setup.md).
+
+### Test Your Installation
+
+The bundled synthetic VCF contains a deletion, a duplication and an interchromosomal adjacency. On a workstation or inside a small compute allocation:
+
+```bash
+python scripts/workflow.py test --profile test
+```
+
+On Slurm, run that same local toy task **inside an allocated compute-node driver**:
+
+```bash
+mkdir -p logs
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=00:15:00 --output=logs/toy-%j.log \
+  --wrap="python scripts/workflow.py test --profile test"
+```
+
+The expected output is `results/toy/PASS.txt` and **three retained events**. See [expected toy outputs](examples/toy_expected/README.md). This checks installation and conversion—not caller sensitivity or somatic accuracy.
 
 ### 2. Download the caller containers
 
@@ -125,13 +144,13 @@ sv-workflows/
 
 ### 1. Create your paired samplesheet
 
-Use a tab-separated file with these **nine required headers**:
+Choose an existing private folder outside this checkout, then copy the template (replace the destination below):
 
-```text
-patient_id  tumor_bam  tumor_bai  normal_bam  normal_bai  sex  tumor_phenotype  purity  ploidy
+```bash
+cp examples/samplesheet.tsv /path/to/private/paired_samples.tsv
 ```
 
-Spacing above is illustrative; the file must contain **tabs**. See [examples/samplesheet.tsv](examples/samplesheet.tsv). Populate the first five fields with a unique pair ID and absolute BAM/index paths. Metadata values may be blank, but their headers must remain present. Missing purity/ploidy does not block the five core callers; BRASS explicitly records native-default values. See [input rules](docs/inputs-outputs.md).
+Edit that file, **preserving its tabs and all nine column headers**. The template is already tab-separated; do not replace tabs with spaces or remove trailing empty metadata fields. Replace the synthetic row with your unique pair IDs and absolute BAM/index paths in the first five fields. Metadata values may be blank, but their headers must remain present. Missing purity/ploidy does not block the five core callers; BRASS explicitly records native-default values. See [input rules](docs/inputs-outputs.md).
 
 ### 2. Copy and edit the run configuration
 
@@ -184,25 +203,6 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 
 Concurrency is **per caller**, not global. Raise it to `8` only after a successful concurrent pilot and capacity checks. Driver time must cover the whole run. See [HPC instructions](docs/hpc.md) for PBS/LSF/SGE or an allocated local node; non-Slurm profiles are templates requiring site validation.
 
-## Test Your Installation
-
-The bundled synthetic VCF contains a deletion, a duplication and an interchromosomal adjacency. On a workstation or inside a small compute allocation:
-
-```bash
-python scripts/workflow.py test --profile test
-```
-
-On Slurm, run that same local toy task **inside an allocated compute-node driver**:
-
-```bash
-mkdir -p logs
-sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
-  --cpus-per-task=1 --mem=4G --time=00:15:00 --output=logs/toy-%j.log \
-  --wrap="python scripts/workflow.py test --profile test"
-```
-
-The expected output is `results/toy/PASS.txt` and **three retained events**. See [expected toy outputs](examples/toy_expected/README.md). This checks installation and conversion—not caller sensitivity or somatic accuracy.
-
 ## SV Signature Analysis
 
 Start from completed, reviewed caller-specific VCFs. Create a private five-column inventory following [examples/callsets.tsv](examples/callsets.tsv), then calculate source hashes:
@@ -214,7 +214,14 @@ python scripts/build_sv_manifest.py --inventory /path/to/private/callsets.tsv \
 cp examples/signatures.yaml config/private-signatures.yaml
 ```
 
-Edit that config and install the separate [signature environments/references](docs/signatures.md). Choose **one** analysis route:
+Edit that config and install the separate [signature environments/references](docs/signatures.md). Both routes currently use **GRCh37**; other assemblies need explicit implementation and validation changes.
+
+| Choose this route | You receive | Interpretation |
+| --- | --- | --- |
+| COSMIC SV32 | 32-channel counts and SV1–SV12 exposures | Fit to reference signatures |
+| ClusterSV | Clusters, footprints and timing annotations | Without copy-number data; not PCAWG 16-signature decomposition |
+
+Choose **one** analysis route:
 
 ```bash
 # COSMIC: 32-channel matrix and SV1–SV12 exposures.

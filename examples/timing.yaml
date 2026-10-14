@@ -1,0 +1,7 @@
+# Copy to config/private-timing.yaml after preparing the timing Python environment.
+# Partial overlay of config/replication.yaml; no cohort or patient data are needed.
+timing_python: environments/replication-timing-python/bin/python
+timing_outdir: resources/replication_timing/pcawg_mean_tertiles
+timing_label_policy: tertiles
+account: YOUR_ACCOUNT
+partition: YOUR_PARTITION

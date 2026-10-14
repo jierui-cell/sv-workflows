@@ -1,4 +1,4 @@
-# Run from sv_pipeline with -params-file, or edit a private copy of config.yaml.
+# Use scripts/workflow.py signatures with a private overlay from examples/signatures.yaml.
 method: cosmic_sv32  # cosmic_sv32 | pcawg_clustersv
 manifest: /path/to/private/sv_manifest.tsv
 outdir: ''  # Default: results/sv_signatures_corrected OR results/sv_signatures_pcawg

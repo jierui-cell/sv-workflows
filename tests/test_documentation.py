@@ -43,4 +43,29 @@ class DocumentationTests(unittest.TestCase):
             self.assertIn('href="quickstart.html" aria-current="page"',page)
             self.assertIn('<title>Quick start — SV Workflows</title>',page)
 
+    def test_long_page_contents_and_keyboard_table(self):
+        docs=self.builder()
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); (root/'docs').mkdir()
+            (root/'docs/index.md').write_text('# Home\n')
+            (root/'README.md').write_text('# Guide\n\n## Setup\n\n## Run\n\n## Results\n\n| Item | Path |\n| --- | --- |\n| Toy | Example |\n')
+            (root/'CONFIG_PARAMETERS.md').write_text('# Parameters\n')
+            docs.build(root)
+            page=(root/'site/quickstart.html').read_text()
+            self.assertIn('<summary>On this page</summary>',page)
+            self.assertLess(page.index('<h1'),page.index('<details class="page-toc">'))
+            self.assertIn('href="#setup"',page)
+            self.assertIn('class="table-scroll" role="region"',page)
+            self.assertIn('aria-label="Scrollable table" tabindex="0"',page)
+
+    def test_missing_heading_anchor_is_rejected(self):
+        docs=self.builder()
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); (root/'docs').mkdir()
+            (root/'docs/index.md').write_text('# Home\n\n[Wrong heading](../README.md#missing)\n')
+            (root/'README.md').write_text('# Guide\n')
+            (root/'CONFIG_PARAMETERS.md').write_text('# Parameters\n')
+            with self.assertRaisesRegex(ValueError,'Broken generated page/anchor'):
+                docs.build(root)
+
 if __name__=='__main__': unittest.main()

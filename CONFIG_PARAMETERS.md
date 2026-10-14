@@ -100,6 +100,6 @@ Advanced `features`/`signatures` stages require supplied validated classificatio
 
 ## Other Workflows
 
-Timing reference setup uses [config/replication.yaml](config/replication.yaml): 1-kb bins, full per-track bin coverage and fixed genome-wide tertiles. It requires a separate environment and is independent of cohort/caller.
+Timing reference setup uses [config/replication.yaml](config/replication.yaml): 1-kb bins, full per-track bin coverage and fixed genome-wide tertiles. Copy [examples/timing.yaml](examples/timing.yaml) to `config/private-timing.yaml`, then edit the site settings. It requires a separate environment and is independent of cohort/caller.
 
 Cue/JaBbA defaults require separately provisioned assets and validation. LUMPY configuration is historical only; the launcher rejects it. See [readiness](docs/workflow-status.md).

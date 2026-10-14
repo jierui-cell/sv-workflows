@@ -4,11 +4,14 @@ Both methods consume caller-specific final VCFs through the same hashed manifest
 
 ## COSMIC SV32
 
-Uses SigProfilerMatrixGenerator 1.3.6 and the tested pandas 2.2.3 semantics. Install the locked environment separately:
+Uses SigProfilerMatrixGenerator 1.3.6 and the tested pandas 2.2.3 semantics. The current fitting adapter explicitly uses **GRCh37**; do not supply another assembly without an implementation change and revalidation.
+
+Install the locked environment separately. Run the numerical control only in an allocated compute session (not on an HPC login node):
 
 ```bash
 python3.11 -m venv sv_signatures/.venv
 sv_signatures/.venv/bin/python -m pip install -r sv_signatures/requirements.lock.txt
+# Numerical computation: allocated compute node only.
 sv_signatures/.venv/bin/python sv_signatures/test_clustering.py
 ```
 
@@ -17,7 +20,10 @@ Run the numerical control on an allocated node. It checks actual clustered/noncl
 Prepare a private `config/private-signatures.yaml` containing the manifest, output directory, environment path and scheduler settings. `python` should be an absolute environment executable path.
 
 ```bash
-python scripts/workflow.py signatures --config config/private-signatures.yaml --set method=cosmic_sv32
+mkdir -p logs
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=24:00:00 --output=logs/cosmic-%j.log \
+  scripts/run.slurm.sh signatures --config config/private-signatures.yaml --set method=cosmic_sv32
 ```
 
 ## Original ClusterSV, without copy number
@@ -26,11 +32,20 @@ The pinned [ClusterSV](https://github.com/cancerit/ClusterSV) method reproduces 
 
 ```bash
 python sv_signatures/pcawg/prepare_sources.py
-# On a compute node with R 4.3 and the appropriate build dependencies:
+# In an allocated compute session with R 4.3 and build dependencies:
 Rscript sv_signatures/pcawg/setup_env.R "$PWD"
 python sv_signatures/pcawg/test_clustersv.py --pipeline-root "$PWD" --clustering-only
-python scripts/workflow.py signatures --config config/private-signatures.yaml \
-  --set method=pcawg_clustersv --set pcawg_stage=clustering
+```
+
+**Before submitting ClusterSV analysis, complete [replication-timing reference construction](#replication-timing) below.** The default workflow requires both `reference.json` and `verification.json`. If you choose a nondefault timing output location, set `pcawg_timing_reference` to that verified directory in your signature YAML.
+
+```bash
+# Submit a separate driver for analysis; use a fresh output directory.
+mkdir -p logs
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=24:00:00 --output=logs/clustersv-%j.log \
+  scripts/run.slurm.sh signatures --config config/private-signatures.yaml \
+  --set method=pcawg_clustersv --set pcawg_stage=clustering --set outdir=results/clustersv_run01
 ```
 
 Uses GRCh37 autosomes+X, upstream hg19 centromere/telomere masks, a 1-bp junction minimum and explicit orientation. Ambiguous inversion orientation is excluded rather than invented. Raw distance matrices are quadratic in junction count; high-burden samples need more memory/time. Inspect conversion/mask audits to understand differences from SV32 counts.
@@ -45,7 +60,16 @@ Public ENCODE/UW GRCh37 NHEK, GM12878 and IMR90 tracks are averaged in 1-kb bins
 python3.11 -m venv environments/replication-timing-python
 environments/replication-timing-python/bin/python -m pip install \
   -r sv_signatures/pcawg/replication_requirements.lock.txt
-python scripts/workflow.py timing --config config/private-timing.yaml
+cp examples/timing.yaml config/private-timing.yaml
+```
+
+Edit the copied timing YAML for your account/partition and output location. ClusterSV's pinned source must already be prepared, because it supplies chromosome sizes. Submit the reference construction to compute nodes:
+
+```bash
+mkdir -p logs
+sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
+  --cpus-per-task=1 --mem=4G --time=4:00:00 --output=logs/timing-%j.log \
+  scripts/run.slurm.sh timing --config config/private-timing.yaml
 ```
 
 Source URLs/checksums and output hashes are recorded. A verified reference may be reused across cohorts aligned to this assembly; do not recalculate category cutoffs per tumour. Other assemblies require an explicitly validated reference.
