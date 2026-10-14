@@ -78,6 +78,15 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 
 The expected output is `results/toy/PASS.txt` and **three retained events**. See [expected toy outputs](examples/toy_expected/README.md). This checks installation and conversion—not caller sensitivity or somatic accuracy.
 
+For stronger installation validation, exercise the **actual caller entry point**, with real synthetic BAM preflight and stubbed caller tasks:
+
+```bash
+# Workstation or allocated compute node; requires samtools and Nextflow.
+python scripts/test_main_stub.py --out results/main_stub_check01
+```
+
+This checks four caller branches plus cached resume, without running caller inference. After downloading Manta's image, add `--manta-image containers/images/manta-1.6.0--py27h9948957_6.sif` to also test its container configuration. Use a fresh output directory each time. CI runs the four-branch test and the original ClusterSV numerical control; the container-enabled five-branch control is checked separately on HPC.
+
 ### 2. Download the caller containers
 
 Choose your site's runtime. Both commands download the same digest-pinned images into `containers/images/`.
@@ -160,6 +169,8 @@ cp examples/cohort.yaml config/private-cohort.yaml
 
 Edit the samplesheet/reference paths, cohort label, scheduler settings and enabled callers. The template starts with **Manta and DELLY**; add `svaba,gridss,brass` once their resources and pilots are ready.
 
+Set `genome_build` explicitly (`GRCh37` by default). Preflight checks primary chromosome lengths against that declaration as well as BAM/reference dictionary agreement; this is not a replacement for supplying the exact alignment FASTA. Optional region exclusions and their caller-specific behavior are explained in [parameters](CONFIG_PARAMETERS.md#optional-region-exclusions).
+
 All scientific/resource defaults are in [config/defaults.yaml](config/defaults.yaml). Your private YAML only needs values you want to change. See [CONFIG_PARAMETERS.md](CONFIG_PARAMETERS.md) for names, defaults and tuning examples.
 
 ### 3. Check the configuration and inputs
@@ -180,6 +191,8 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 ```
 
 Replace submission flags **and** matching YAML account/partition with your site's values. Activate the environment and load required modules before submission. `--dry-run` alone does not inspect BAM contents.
+
+Submit these commands **from the repository root**. The driver uses `SLURM_SUBMIT_DIR`, not the location of Slurm's copied script. To submit from elsewhere, export `SV_WORKFLOW_ROOT=/absolute/path/to/sv-workflows`; optionally set `SV_PYTHON` to the absolute launcher-environment Python executable.
 
 ### 4. Run a pilot, then expand
 

@@ -98,7 +98,7 @@ PY
 tumor=$(jq -er .tumor_bam "$out/effective-settings.json")
 normal=$(jq -er .normal_bam "$out/effective-settings.json")
 step=preflight
-(cd "$run/preflight"; bash "$root/scripts/validate_pair.sh" "$pair" "$ref.fai" "$tumor" "$normal") > "$run/preflight.log" 2>&1
+(cd "$run/preflight"; bash "$root/scripts/validate_pair.sh" "$pair" "$ref.fai" "$tumor" "$normal" "${SV_ALLOW_LOCAL:-0}") > "$run/preflight.log" 2>&1
 sha256sum "${BRASS_IMAGE:?}" "$ref" "$bundle/adaptation.json" "$bundle/native-validation.json" "$bundle/get_rg_cns.R" "$stats"/*.bas scripts/benchmark_brass.sh scripts/brass_with_bundle.sh scripts/measure_command.py > "$run/artifacts.sha256"
 common=(bash -x "$root/scripts/brass_with_bundle.sh" "$bundle"
   -t "$tumor" -n "$normal" -o "$out/calls" -ss "$out/sample-statistics.txt"

@@ -1,5 +1,6 @@
 # Use scripts/workflow.py signatures with a private overlay from examples/signatures.yaml.
 method: cosmic_sv32  # cosmic_sv32 | pcawg_clustersv
+genome_build: GRCh37
 manifest: /path/to/private/sv_manifest.tsv
 outdir: ''  # Default: results/sv_signatures_corrected OR results/sv_signatures_pcawg
 python: sv_signatures/.venv/bin/python
@@ -11,11 +12,12 @@ cosmic_version: 3.6
 skip_fit: false
 pcawg_stage: clustering  # ClusterSV clustering without copy-number data.
 pcawg_min_size_bp: 1  # Preserve short junctions relevant to complex events
-pcawg_timing_source: reference  # reference (automatic tertiles) | supplied (prepared annotations)
+pcawg_timing_source: reference  # Verified fixed-tertile reference is required by the supported route.
 pcawg_timing_reference: resources/replication_timing/pcawg_mean_tertiles
 pcawg_fdr_first: 0.01
 pcawg_fdr_final: 0.05
 pcawg_footprint_fdr: 0.01
+pcawg_mask_policy: local_cen_telo_exclusion  # Local filtering, not upstream ClusterSV behavior.
 account: null
 partition: null
 scheduler_options: ''

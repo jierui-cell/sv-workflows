@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class BenchmarkReportingTests(unittest.TestCase):
+    @unittest.skipUnless(Path('/proc/self/stat').is_file(),'Linux /proc memory recorder')
     def test_recorder_measures_child_and_preserves_failure(self):
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)

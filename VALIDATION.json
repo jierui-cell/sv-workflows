@@ -1,7 +1,7 @@
 {
   "release": "0.1.0-dev",
-  "validation_date_local": "2026-10-13",
-  "offline_regression_tests": {"status": "passed", "tests": 81},
+  "validation_date_local": "2026-10-14",
+  "offline_regression_tests": {"status": "passed", "tests": 92},
   "samplesheet_validation": {"status": "passed", "negative_cases": 10},
   "nextflow_synthetic_smoke": {
     "status": "passed",
@@ -12,6 +12,24 @@
     "scope": "Nextflow execution and synthetic VCF conversion, not caller accuracy"
   },
   "documentation": {"status": "built", "pages": 11},
+  "main_entrypoint_stub": {
+    "status": "passed",
+    "scope": "real synthetic BAM preflight and all five caller stubs, including Manta image configuration",
+    "cached_resume_tasks": 6,
+    "runtime": "official Nextflow 25.10.7 launcher on allocated compute node"
+  },
+  "optional_exclusions_stub": {
+    "status": "passed",
+    "callers": ["manta", "delly", "gridss"],
+    "scope": "BED validation, exclusion normalization, Manta inclusion-list complement and cached resume"
+  },
+  "clustersv_numerical_control": {
+    "status": "passed",
+    "scope": "pinned upstream default-output equivalence, clustered/singleton fixture and empty input",
+    "synthetic_junctions": 5,
+    "clustered_junctions": 2,
+    "singleton_junctions": 3
+  },
   "publication_pattern_audit": {"status": "passed", "manual_review_still_required": true},
   "portable_real_pair_equivalence": {"status": "not_run"},
   "non_slurm_scheduler_execution": {"status": "not_tested", "profiles_are_templates": true},

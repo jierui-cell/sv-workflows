@@ -21,6 +21,8 @@ python scripts/workflow.py callers --config config/private-cohort.yaml \
 | --- | --- |
 | `input` | Example TSV; replace with your private paired samplesheet |
 | `reference` | Placeholder; replace with the exact alignment FASTA |
+| `genome_build` | `GRCh37`; checked against primary reference chromosome lengths |
+| `exclude_bed` | `null`; optional validated 0-based BED, supported for Manta/DELLY/GRIDSS |
 | `dataset_id` | Placeholder label; required for caller benchmark identity |
 | `outdir` | `results/my_run`; choose a new directory for each experiment |
 | `callers` | `preflight`; comma-separated caller names without spaces |
@@ -73,6 +75,16 @@ delly:
 
 These are examples, not recommended thresholds. Changes require revalidation and a new output directory. The GRIDSS baseline has no panel of normals or BSgenome; raw joint calls are not equivalent to filtered somatic calls.
 
+## Optional Region Exclusions
+
+Set `exclude_bed` to an absolute, reference-matched 0-based half-open BED path, or leave it `null` to preserve the original unmasked baseline. Intervals are checked against FASTA contig names/lengths and merged; aliases are not inferred. The source and normalized region hashes are recorded.
+
+- DELLY receives the normalized exclusions via `-x`.
+- GRIDSS receives them via `--blacklist`.
+- Manta receives a **complement inclusion list** via `--callRegions`, generated with `bgzip` and `tabix`. These two tools must be available when exclusions are enabled for Manta.
+
+Do not enable this shared option for SvABA or BRASS: the launcher rejects unsupported combinations rather than silently ignoring the mask. Run those callers separately without it. A mask changes the scientific configuration; revalidate in a fresh output directory. Caller-specific interpretation may differ, so this is not a guarantee of identical callable regions across callers.
+
 ## Signature Settings
 
 Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yaml).
@@ -80,6 +92,7 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | Parameter | Default / meaning |
 | --- | --- |
 | `manifest` | Placeholder; six-column hashed VCF manifest |
+| `genome_build` | `GRCh37`; both supported analysis routes reject other assemblies |
 | `python` | `sv_signatures/.venv/bin/python`; separate pinned environment |
 | `method` | `cosmic_sv32` or `pcawg_clustersv` |
 | `outdir` | Empty: method-specific default; use an explicit new path for experiments |
@@ -91,6 +104,7 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | `pcawg_stage` | `clustering`; supported CN-free path |
 | `pcawg_min_size_bp` | `1`; preserve short oriented junctions |
 | `pcawg_fdr_first`, `pcawg_fdr_final`, `pcawg_footprint_fdr` | `0.01`, `0.05`, `0.01` |
+| `pcawg_mask_policy` | `local_cen_telo_exclusion`; local endpoint filtering, or `primary_only` |
 | `pcawg_timing_source` | `reference`; verified fixed genome-wide tertiles |
 | `account`, `partition` | `null`; signature scheduler keys use these names |
 | `group_cpus`, `group_memory_gb`, `group_time` | `4`, `32`, `4h` |

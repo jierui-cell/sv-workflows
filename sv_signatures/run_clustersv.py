@@ -11,6 +11,8 @@ from collections import Counter
 from pathlib import Path
 
 from run_group import sha256
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
+from reference_policy import check_vcf
 from vcf_to_bedpe import CLUSTERSV_FIELDS, convert
 
 CLUSTER_COLUMNS = CLUSTERSV_FIELDS + ('cluster_id', 'cluster_size', 'footprint1', 'footprint2',
@@ -61,7 +63,9 @@ def references(source, output):
     return sizes_out, mask_file, masks, sizes
 
 
-def mask_bedpe(path, masks, sizes, excluded_path):
+def mask_bedpe(path, masks, sizes, excluded_path, policy='local_cen_telo_exclusion'):
+    if policy not in ('local_cen_telo_exclusion','primary_only'):
+        raise ValueError('Unknown mask policy: ' + policy)
     rows = []
     excluded = []
     names = set()
@@ -81,9 +85,9 @@ def mask_bedpe(path, masks, sizes, excluded_path):
             if not 0 <= start < end <= int(sizes[c]):
                 raise ValueError('Out-of-reference breakpoint: ' + line)
             ptel, cen_start, _, cen_end, qtel = masks[c]
-            if end <= ptel or end >= qtel:
+            if policy == 'local_cen_telo_exclusion' and (end <= ptel or end >= qtel):
                 reasons.append('telomere_mask')
-            if cen_start <= end <= cen_end:
+            if policy == 'local_cen_telo_exclusion' and cen_start <= end <= cen_end:
                 reasons.append('centromere_mask')
         if reasons:
             excluded.append(dict(record_id=fields[6], decision=','.join(sorted(set(reasons)))))
@@ -169,12 +173,14 @@ def run(args):
     function_source = args.clustersv_source / 'R/clustering_index.R'
     effective = {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()}
     effective.update({'method': 'pcawg_clustersv', 'upstream': upstream,
-                      'feature_profile': 'panprostate_2026_core',
+                      'feature_profile': None if args.stage == 'clustering' else 'panprostate_2026_core',
                       'coordinate_system': '0-based half-open BEDPE, 1bp intervals',
                       'chromosomes': PRIMARY, 'mask_file': str(mask_path),
                       'clustering_function_sha256': sha256(function_source),
                       'r_environment_lock_sha256': sha256(args.rscript.parent / 'renv.lock'),
                       'mask_sha256': sha256(mask_path), 'chrom_sizes_sha256': sha256(sizes_path)})
+    effective['mask_policy'] = getattr(args,'mask_policy','local_cen_telo_exclusion')
+    effective['mask_policy_note'] = 'Local endpoint filtering is separate from upstream footprint boundary references.'
     if timing_metadata:
         effective.update(timing_source='reference_tertiles', timing_label_policy='tertiles',
                          timing_thresholds=timing_metadata['thresholds'],
@@ -191,6 +197,8 @@ def run(args):
     for row in sorted(rows, key=lambda r: r['pair_id']):
         pair, source = row['pair_id'], Path(row['vcf'])
         digest = sha256(source)
+        if getattr(args,'genome_build',None):
+            check_vcf(source,args.genome_build)
         if row['source_sha256'] and row['source_sha256'] != digest:
             raise ValueError('Source VCF changed: ' + str(source))
         if class_rows:
@@ -204,7 +212,8 @@ def run(args):
         else:
             before_mask = convert(source, args.caller, pair, bedpe, out / 'audit' / (pair + '.events.tsv'),
                                   out / 'audit' / (pair + '.conversion.json'), args.min_size_bp, 'clustersv')
-        n, excluded = mask_bedpe(bedpe, masks, sizes, out / 'audit' / (pair + '.masks.tsv'))
+        n, excluded = mask_bedpe(bedpe, masks, sizes, out / 'audit' / (pair + '.masks.tsv'),
+                                getattr(args,'mask_policy','local_cen_telo_exclusion'))
         prefix = out / 'clusters' / pair
         command(['bash', str(args.rscript), str(args.cluster_wrapper), str(bedpe), str(sizes_path),
                  str(mask_path), str(prefix), str(function_source), str(args.cpus),
@@ -267,7 +276,9 @@ def main():
     p.add_argument('--caller', required=True)
     p.add_argument('--expected-pairs', type=int, required=True)
     p.add_argument('--pair-ids', default='')
-    p.add_argument('--stage', choices=('clustering', 'features', 'signatures'), default='features')
+    p.add_argument('--stage', choices=('clustering',), default='clustering',help='Only clustering is supported by this public release')
+    p.add_argument('--genome-build', choices=('GRCh37',), default='GRCh37')
+    p.add_argument('--mask-policy', choices=('local_cen_telo_exclusion','primary_only'), default='local_cen_telo_exclusion')
     p.add_argument('--min-size-bp', type=int, default=1)
     p.add_argument('--cpus', type=int, default=1)
     p.add_argument('--nmf-epsilon', type=float, default=2.220446049250313e-16)

@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -21,7 +21,12 @@ jobs:
         with:
           version: '25.10.7'
       - run: python -m pip install -r requirements.txt -r requirements-docs.txt
+      - run: sudo apt-get update && sudo apt-get install -y samtools bcftools r-base r-cran-gtools r-cran-doparallel r-cran-r.utils
       - run: python scripts/test_installation.py
       - run: python scripts/audit_publication.py
       - run: python scripts/workflow.py test --profile test
+      - run: python scripts/test_main_stub.py --out results/ci-main-stub
+      - run: python scripts/test_main_stub.py --out results/ci-region-stub --with-exclusions
+      - run: python sv_signatures/pcawg/prepare_sources.py --clustersv-only
+      - run: python sv_signatures/pcawg/test_clustersv.py --pipeline-root "$PWD" --clustering-only --rscript Rscript
       - run: python scripts/build_docs.py

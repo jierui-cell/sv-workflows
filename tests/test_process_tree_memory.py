@@ -12,6 +12,7 @@ METER = Path(__file__).resolve().parents[1] / 'scripts/measure_command.py'
 
 
 class ProcessTreeMemoryTests(unittest.TestCase):
+    @unittest.skipUnless(Path('/proc/self/stat').is_file(),'Linux /proc memory recorder')
     def test_records_process_tree_and_exit_code(self):
         with tempfile.TemporaryDirectory() as temp:
             report = Path(temp) / 'usage.json'

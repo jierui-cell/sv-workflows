@@ -5,9 +5,11 @@ import argparse
 import csv
 import hashlib
 import json
+import sys
 import time
 from importlib.metadata import version
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 
 from vcf_to_bedpe import convert
 from normalize_exposures import normalize
@@ -115,6 +117,9 @@ def run(args):
         digest = sha256(source)
         if row["source_sha256"] and row["source_sha256"] != digest:
             raise ValueError("Source VCF SHA256 changed: " + str(source))
+        if getattr(args,'genome_build',None):
+            from reference_policy import check_vcf
+            check_vcf(source,args.genome_build)
         counts[pair] = convert(source, args.caller, pair, inputs / (pair + ".bedpe"),
                                audits / (pair + ".audit.tsv"), audits / (pair + ".summary.json"), args.min_size_bp)
         source_rows.append({"pair_id": pair, "vcf": str(source.resolve()),
@@ -166,6 +171,7 @@ def main():
     parser.add_argument("--expected-pairs", type=int, required=True)
     parser.add_argument("--min-size-bp", type=int, default=1000)
     parser.add_argument("--cosmic-version", type=float, default=3.6)
+    parser.add_argument("--genome-build",choices=('GRCh37',),default='GRCh37')
     parser.add_argument("--cpus", type=int, default=1)
     parser.add_argument("--pair-id", default="", help="One-sample technical smoke test only")
     parser.add_argument("--pair-ids", default="", help="Comma-separated pilot sample IDs")

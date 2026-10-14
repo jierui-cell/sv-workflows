@@ -2,6 +2,8 @@ nextflow.enable.dsl = 2
 
 params.manifest = "${projectDir}/input_manifest.tsv"
 params.method = 'cosmic_sv32'
+params.genome_build = 'GRCh37'
+params.pcawg_mask_policy = 'local_cen_telo_exclusion'
 params.outdir = ''
 params.python = "${projectDir}/.venv/bin/python"
 params.groups = 'all'
@@ -66,6 +68,7 @@ process SIGNATURE_GROUP {
         --cluster-wrapper cluster.R --features-wrapper features.R --nmf-wrapper nmf.R
         --memory-monitor measure_process_tree.py
         --stage '${params.pcawg_stage}' --min-size-bp ${params.pcawg_min_size_bp}
+        --genome-build '${params.genome_build}' --mask-policy '${params.pcawg_mask_policy}'
         --fdr-first ${params.pcawg_fdr_first} --fdr-final ${params.pcawg_fdr_final}
         --footprint-fdr ${params.pcawg_footprint_fdr} --rank-min ${params.pcawg_rank_min}
         --rank-max ${params.pcawg_rank_max} --rank ${params.pcawg_rank}
@@ -73,7 +76,7 @@ process SIGNATURE_GROUP {
         --nmf-epsilon ${params.pcawg_nmf_epsilon} --nmf-max-iter ${params.pcawg_nmf_max_iter}
         ${params.pcawg_timing_source == 'reference' ? "--timing-reference '${file(params.pcawg_timing_reference).toAbsolutePath()}' --timing-wrapper replication_timing.py" : ''}
         ${params.pcawg_classified_manifest ? "--classified-manifest '${file(params.pcawg_classified_manifest).toAbsolutePath()}'" : ''}
-    """.stripIndent().replaceAll('\\s*\\n\\s*', ' ') : "--min-size-bp ${params.min_size_bp} --cosmic-version ${params.cosmic_version} ${skip}"
+    """.stripIndent().replaceAll('\\s*\\n\\s*', ' ') : "--genome-build '${params.genome_build}' --min-size-bp ${params.min_size_bp} --cosmic-version ${params.cosmic_version} ${skip}"
     def control = pcawg ? "test_clustersv.py --pipeline-root '${root}' --clustering-only" : 'test_clustering.py'
     """
     set -euo pipefail
@@ -87,11 +90,14 @@ process SIGNATURE_GROUP {
 }
 
 workflow {
+    if (params.genome_build != 'GRCh37') error 'Supported signature routes require GRCh37; other assemblies are not implemented'
     if (!(params.method in ['cosmic_sv32', 'pcawg_clustersv'])) error 'method must be cosmic_sv32 or pcawg_clustersv'
     if (!(params.pcawg_stage in ['clustering', 'features', 'signatures'])) error 'pcawg_stage must be clustering, features or signatures'
     if (!(params.pcawg_timing_source in ['reference','supplied'])) error 'pcawg_timing_source must be reference or supplied'
-    if (params.method == 'pcawg_clustersv' && (params.pcawg_stage in ['features', 'signatures']) && !params.pcawg_classified_manifest)
-        error 'PCAWG 44-feature construction requires pcawg_classified_manifest with validated cSV classes and annotations; use pcawg_stage=clustering for an unclassified pilot'
+    if (params.method == 'pcawg_clustersv' && params.pcawg_timing_source != 'reference')
+        error 'The public ClusterSV route requires the verified timing reference'
+    if (params.method == 'pcawg_clustersv' && params.pcawg_stage != 'clustering')
+        error 'This release supports ClusterSV clustering and annotations only; classified features/signature extraction are outside its no-copy-number scope'
     def resolvedOutdir = file(params.outdir ?: "${projectDir}/../results/${params.method == 'cosmic_sv32' ? 'sv_signatures_corrected' : 'sv_signatures_pcawg'}").toAbsolutePath()
     def manifest = file(params.manifest, checkIfExists: true)
     def lines = manifest.readLines()
@@ -116,7 +122,7 @@ workflow {
     def converter = file("${projectDir}/vcf_to_bedpe.py", checkIfExists: true)
     def normalizer = file("${projectDir}/normalize_exposures.py", checkIfExists: true)
     if (params.python != 'python3' && !file(params.python).isFile()) error "Pinned signature Python environment missing: ${params.python}"
-    def helpers = [converter, normalizer]
+    def helpers = [converter, normalizer, file("${projectDir}/../scripts/reference_policy.py", checkIfExists:true)]
     if (params.method == 'cosmic_sv32') helpers.add(file("${projectDir}/test_clustering.py", checkIfExists: true))
     else {
         helpers.addAll(['run_group.py','pcawg/cluster.R','pcawg/features.R','pcawg/nmf.R','pcawg/stable_nmf.R','pcawg/upstream.json','pcawg/test_clustersv.py','pcawg/replication_timing.py'].collect { file("${projectDir}/${it}", checkIfExists: true) })

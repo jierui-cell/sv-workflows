@@ -76,10 +76,16 @@ def validate(config, mode):
     if config.get('container_engine', 'apptainer') not in ('apptainer', 'singularity'):
         raise ValueError('container_engine must be apptainer or singularity (SIF images)')
     if mode == 'callers':
+        if config['genome_build'] not in ('GRCh37','GRCh38'):
+            raise ValueError('genome_build must be GRCh37 or GRCh38')
         callers = config['callers'].split(',')
         supported = {'preflight', 'manta', 'delly', 'svaba', 'gridss', 'brass'}
         if not callers or set(callers) - supported:
             raise ValueError('Unknown/discontinued caller; supported: ' + ','.join(sorted(supported)))
+        if config.get('exclude_bed') and set(callers)-{'preflight','manta','delly','gridss'}:
+            raise ValueError('exclude_bed is supported for Manta, DELLY and GRIDSS only; run other callers separately')
+        if 'brass' in callers and config['genome_build'] != config['brass']['assembly']:
+            raise ValueError('BRASS assembly and genome_build must agree')
         for caller in ('delly', 'svaba', 'gridss'):
             if caller in callers:
                 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -88,12 +94,18 @@ def validate(config, mode):
         if config['manta_workflow_memory_gb'] >= config['manta_memory_gb']:
             raise ValueError('Manta workflow memory must be below the allocated memory')
     if mode == 'signatures':
+        if config['genome_build'] != 'GRCh37':
+            raise ValueError('The supported signature routes require genome_build=GRCh37')
         if config['method'] not in ('cosmic_sv32', 'pcawg_clustersv'):
             raise ValueError('Unknown signature method')
         if config['pcawg_stage'] not in ('clustering', 'features', 'signatures'):
             raise ValueError('Unknown pcawg_stage')
-        if config['method'] == 'pcawg_clustersv' and config['pcawg_stage'] != 'clustering' and not config.get('pcawg_classified_manifest'):
-            raise ValueError('44 features require validated classifications; without copy number use pcawg_stage=clustering')
+        if config['method'] == 'pcawg_clustersv' and config['pcawg_stage'] != 'clustering':
+            raise ValueError('44 features and signature extraction are outside this no-copy-number release; use pcawg_stage=clustering')
+        if config['method'] == 'pcawg_clustersv' and config['pcawg_timing_source'] != 'reference':
+            raise ValueError('The supported ClusterSV route requires the verified timing reference')
+        if config.get('pcawg_mask_policy') not in ('local_cen_telo_exclusion','primary_only'):
+            raise ValueError('Unknown ClusterSV mask policy')
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
@@ -117,6 +129,8 @@ def main():
             raise ValueError('The test profile is reserved for synthetic installation tests')
         if args.profile == 'local' and args.workflow != 'test' and not args.allow_local:
             raise ValueError('Use --allow-local only on a workstation/allocated compute node')
+        if args.workflow == 'callers':
+            config['allow_local_execution'] = args.profile == 'local' and args.allow_local
         stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
         log_dir = ROOT / 'logs' / (args.workflow + '-' + stamp)
         command = ['nextflow', '-log', str(log_dir / 'nextflow.log'), 'run',

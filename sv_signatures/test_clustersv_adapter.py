@@ -62,6 +62,18 @@ class ClusterSVAdapterTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'missing columns: vcf'):
                 table(path, {'cohort', 'vcf'})
 
+    def test_mask_policy_does_not_claim_upstream_exclusion(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = '1\t120\t121\t1\t179\t180\tcentromere\t0\t+\t-\n'
+            masks = {'1':[10,100,150,200,990]}
+            sizes = {'1':'1000'}
+            bed = root/'input.bedpe'; bed.write_text(original)
+            self.assertEqual(mask_bedpe(bed,masks,sizes,root/'local.tsv'),(0,1))
+            bed.write_text(original)
+            self.assertEqual(mask_bedpe(bed,masks,sizes,root/'primary.tsv','primary_only'),(1,0))
+            self.assertEqual(bed.read_text(),original)
+
 
 if __name__ == '__main__':
     unittest.main()

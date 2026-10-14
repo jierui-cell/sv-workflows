@@ -4,7 +4,16 @@ from __future__ import print_function
 import argparse
 import json
 import shutil
-from distutils.spawn import find_executable
+try:
+    from shutil import which as find_executable
+except ImportError:  # Pinned Manta uses Python 2.7 inside its image.
+    import os
+    def find_executable(name):
+        for directory in os.environ.get('PATH', '').split(os.pathsep):
+            candidate = os.path.join(directory, name)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                return candidate
+        return None
 try:
     import configparser
 except ImportError:
@@ -36,7 +45,10 @@ if __name__ == '__main__':
     parser.add_argument('--output', default='manta.effective.ini')
     parser.add_argument('--reference')
     args = parser.parse_args()
-    defaults = find_executable('configManta.py') + '.ini'
+    executable = find_executable('configManta.py')
+    if not executable:
+        parser.error('configManta.py is not on PATH; execute this configurator inside the pinned Manta image')
+    defaults = executable + '.ini'
     shutil.copyfile(defaults, 'manta.defaults.ini')
     with open(args.overrides) as handle:
         merge(defaults, json.load(handle), args.output, args.reference)

@@ -91,6 +91,13 @@ def main():
     if tool == 'delly': cfg['filter_options'] = filters
     spec['stage'] = 'somatic' if tool in ('delly', 'svaba') else 'raw_joint_not_somatic'
     spec['optional_external_resources'] = 'none; technical pilot baseline'
+    exclude = None
+    if spec.get('exclude_bed'):
+        if tool not in ('delly','gridss'):
+            raise ValueError('Exclusions are not implemented for ' + tool)
+        from regions import prepare
+        exclude = str(prepare(spec['exclude_bed'], spec['reference']+'.fai', out).resolve())
+        spec['optional_external_resources'] = 'explicit validated exclusion BED; see regions.audit.json'
     (out / 'effective-settings.json').write_text(json.dumps(spec, indent=2) + '\n')
     if args.stub:
         (out / 'STUB_ONLY.txt').write_text('Validated settings only; no variants called.\n')
@@ -141,7 +148,7 @@ def main():
             roles = out/'samples.tsv'
             roles.write_text(names[0]+'\ttumor\n'+names[1]+'\tcontrol\n')
             step = 'discovery'
-            run(prefix+['delly','sr','--threads',str(cfg['cpus']),'-g',ref,'-o',str(out/'discovery.bcf')]+flags+[tumor,normal])
+            run(prefix+['delly','sr','--threads',str(cfg['cpus']),'-g',ref,'-o',str(out/'discovery.bcf')]+flags+(['-x',exclude] if exclude else [])+[tumor,normal])
             observed = subprocess.check_output(['bcftools','query','-l',str(out/'discovery.bcf')]).decode().splitlines()
             if sorted(observed) != sorted(names): raise ValueError('VCF sample mapping mismatch')
             step = 'somatic_filter'
@@ -167,7 +174,7 @@ def main():
                 '--assembly',str(Path('assembly.bam').resolve()),'--workingdir',str(Path('gridss_work').resolve()),
                 '--threads',str(cfg['cpus']),'--jvmheap',str(cfg['jvmheap_gb'])+'g',
                 '--otherjvmheap',str(cfg['otherjvmheap_gb'])+'g','--labels','NORMAL,TUMOR']
-                +picard_options+[normal,tumor])
+                +picard_options+(['--blacklist',exclude] if exclude else [])+[normal,tumor])
             observed = subprocess.check_output(['bcftools','query','-l',str(out/'joint.vcf.gz')]).decode().splitlines()
             if observed != ['NORMAL','TUMOR']: raise ValueError('Unexpected GRIDSS sample order')
             vcfs = [out/'joint.vcf.gz']
@@ -179,7 +186,7 @@ def main():
                      '--input',str(out/'joint.vcf.gz'),'--out',str(out/'somatic'),
                      '--config',str(options_path),'--image',image])
                 spec['stage']='somatic_filtered_no_pon'
-                spec['optional_external_resources']='PON and BSgenome omitted; reference-dependent filtering/equivalence checks disabled'
+                spec['optional_external_resources']='PON and BSgenome omitted; reference-dependent filtering/equivalence checks disabled'+('; explicit exclusions recorded in regions.audit.json' if exclude else '')
                 (out/'effective-settings.json').write_text(json.dumps(spec,indent=2)+'\n')
                 vcfs += [out/'somatic/somatic.high_confidence.vcf.gz',out/'somatic/somatic.full.vcf.gz']
         step = 'output_qc'

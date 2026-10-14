@@ -50,6 +50,13 @@ else
     (cd "$patch_dir"; sha256sum Implement.original.pm Implement.pm Implement.patch.json patch_brass_sample_name.py > adapter.sha256)
 fi
 implementation="$patch_dir/Implement.pm"
+resource_binds=$(python3 - "$bundle" <<'PY'
+from pathlib import Path
+import sys
+parents={str(p.resolve().parent) for p in Path(sys.argv[1]).iterdir() if p.is_file()}
+print(','.join(p+':'+p+':ro' for p in sorted(parents)))
+PY
+)
 if [[ ${BRASS_STATISTICS_STATE:-} == MIXED ]]; then
     python3 "$root/scripts/patch_brass_mixed_statistics.py" "$implementation" "$patch_dir/Implement.mixed.pm"
     cp "$root/scripts/patch_brass_mixed_statistics.py" "$patch_dir/"
@@ -57,7 +64,7 @@ if [[ ${BRASS_STATISTICS_STATE:-} == MIXED ]]; then
     implementation="$patch_dir/Implement.mixed.pm"
 fi
 exec singularity exec --cleanenv \
-    --bind "$root:$root,$bundle:$bundle:ro,${BRASS_EXTRA_BINDS:?},$bundle/get_rg_cns.R:$overlay:ro,$implementation:$native_module:ro" \
+    --bind "$root:$root,$bundle:$bundle:ro,$resource_binds,${BRASS_EXTRA_BINDS:?},$bundle/get_rg_cns.R:$overlay:ro,$implementation:$native_module:ro" \
     "${BRASS_IMAGE:?}" brass.pl \
     -g "${BRASS_REFERENCE:?}" \
     -d "$bundle/HiDepth.bed.gz" -gc "$bundle/vagrent.cache.gz" \

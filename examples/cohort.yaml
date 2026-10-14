@@ -2,6 +2,8 @@
 # Partial overlay; omitted options retain config/defaults.yaml values.
 input: /absolute/path/to/private/paired_samples.tsv
 reference: /absolute/path/to/alignment_reference.fa
+genome_build: GRCh37
+exclude_bed: null
 dataset_id: YOUR_COHORT_LABEL
 outdir: results/cohort_run01
 callers: manta,delly

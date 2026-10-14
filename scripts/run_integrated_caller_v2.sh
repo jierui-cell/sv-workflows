@@ -5,6 +5,7 @@ set -Eeuo pipefail
 export SV_JOB_ID=${SLURM_JOB_ID:-${PBS_JOBID:-${LSB_JOBID:-${JOB_ID:-local-$$}}}}
 export SV_CPUS=${SLURM_CPUS_PER_TASK:-1}
 spec=${1:?Expected task.json}
+export SV_ALLOW_LOCAL=$(python3 -c 'import json,sys; print(int(bool(json.load(open(sys.argv[1])).get("allow_local_execution",False))))' "$spec")
 task_dir=$PWD
 root=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["project_dir"])' "$spec")
 tool=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tool"])' "$spec")

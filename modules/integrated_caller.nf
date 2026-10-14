@@ -5,7 +5,7 @@ process INTEGRATED_CALLER {
     time { settings.time }
     maxForks (params.max_parallel_callers as int)
     scratch false
-    module { params.modules_calling }
+    module { params.modules_calling ?: '' }
     publishDir "${params.outdir}/${tool}/${meta.id}", mode: 'copy'
     input:
     tuple val(meta), val(tool), val(settings), path(manifest)
@@ -17,7 +17,8 @@ process INTEGRATED_CALLER {
     path 'output/*'
     script:
     def spec = groovy.json.JsonOutput.toJson([tool:tool, id:meta.id,
-        project_dir:projectDir.toString(), manifest:manifest.toString(), settings:settings])
+        project_dir:projectDir.toString(), manifest:manifest.toString(), settings:settings,
+        allow_local_execution:params.allow_local_execution])
     def benchmarkSpec = groovy.json.JsonOutput.toJson([caller:tool, pair_id:meta.id,
         dataset_id:params.dataset_id, reference:file(params.reference).toString(),
         allocated_cpus:task.cpus, requested_memory_gb:task.memory.toGiga(),

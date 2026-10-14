@@ -44,7 +44,7 @@ class ConfigurationTests(unittest.TestCase):
             cache = Path(tmp)/'cache'
             prepare_reference_cache(cache, ref)
             prepare_reference_cache(cache, ref)
-            self.assertEqual((cache/'ref.fa').resolve(), ref)
+            self.assertEqual((cache/'ref.fa').resolve(), ref.resolve())
             (cache/'ref.fa').unlink()
             (cache/'ref.fa').symlink_to(ref.with_suffix('.dict'))
             with self.assertRaisesRegex(ValueError, 'Conflicting'):

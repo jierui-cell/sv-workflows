@@ -6,6 +6,16 @@
 
 `python scripts/workflow.py test --profile test` then executes a real Nextflow task on a synthetic VCF. It checks three retained events: deletion, duplication and one interchromosomal adjacency represented by two reciprocal BND records. This test does not run a structural variant caller. On an HPC, launch it within a small compute allocation.
 
+## Actual entry-point and numerical controls
+
+`python scripts/test_main_stub.py --out results/main_stub_check01` executes `main.nf -stub-run` using a tiny reference and real indexed synthetic tumour/normal BAMs. Preflight is not stubbed. It checks numbered-contig queries, symlinked inputs, four caller branches, cached resume, scheduler-environment recognition, and rejection of unacknowledged local preflight. Add `--manta-image /absolute/path/to/manta.sif` for the fifth branch and real Manta container configuration. Stub tasks do not measure performance or establish biological accuracy. The synthetic assembly exception exists only in stub runs.
+
+GitHub CI runs that four-branch control and the pinned original ClusterSV positive control, including byte-for-byte equivalence against upstream defaults and empty/singleton input cases. CI uses Ubuntu distribution tools and R packages; the production R environment remains separately locked. This is not execution of every caller or validation of non-Slurm schedulers.
+
+`--with-exclusions` runs a separate region-policy stub check for DELLY/GRIDSS, and Manta when its image is supplied. The Manta check verifies the inclusion-list complement and requires `bgzip`/`tabix`; it does not establish biological equivalence of caller region handling.
+
+Specify `--container-engine singularity` or `apptainer` when needed for the optional Manta check. `--debug-cache` adds detailed task-hash diagnostics when troubleshooting resume; normal test logs stay compact.
+
 ## Container/setup checks
 
 Pull selected digest-pinned images, check the caller executable inside each with `apptainer exec IMAGE command --help`, and validate the exact alignment reference/indexes. BRASS also requires native bundle validation. ClusterSV and SigProfiler have genuine numerical controls that need their pinned R/Python environments; they are not part of the lightweight offline suite.

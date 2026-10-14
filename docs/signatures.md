@@ -2,6 +2,8 @@
 
 Both methods consume caller-specific final VCFs through the same hashed manifest. BND mates are collapsed to one adjacency; caller-specific filter policies and excluded records are audited. These are five separate callsets, not five independent votes or a consensus truth set.
 
+Both supported routes require `genome_build: GRCh37`. VCF primary-contig lengths are checked before conversion; an incompatible or unverifiable header stops the run. Do not infer an assembly from `chr` prefixes, and do not add guessed lengths to a VCF header. Establish the alignment reference first and retain provenance for any verified header correction.
+
 ## COSMIC SV32
 
 Uses SigProfilerMatrixGenerator 1.3.6 and the tested pandas 2.2.3 semantics. The current fitting adapter explicitly uses **GRCh37**; do not supply another assembly without an implementation change and revalidation.
@@ -31,7 +33,7 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
 The pinned [ClusterSV](https://github.com/cancerit/ClusterSV) method reproduces the proximity clustering/footprint part of the [PCAWG structural-variation study](https://www.nature.com/articles/s41586-019-1913-9).
 
 ```bash
-python sv_signatures/pcawg/prepare_sources.py
+python sv_signatures/pcawg/prepare_sources.py --clustersv-only
 # In an allocated compute session with R 4.3 and build dependencies:
 Rscript sv_signatures/pcawg/setup_env.R "$PWD"
 python sv_signatures/pcawg/test_clustersv.py --pipeline-root "$PWD" --clustering-only
@@ -48,9 +50,15 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
   --set method=pcawg_clustersv --set pcawg_stage=clustering --set outdir=results/clustersv_run01
 ```
 
-Uses GRCh37 autosomes+X, upstream hg19 centromere/telomere masks, a 1-bp junction minimum and explicit orientation. Ambiguous inversion orientation is excluded rather than invented. Raw distance matrices are quadratic in junction count; high-burden samples need more memory/time. Inspect conversion/mask audits to understand differences from SV32 counts.
+Uses GRCh37 autosomes+X, a 1-bp junction minimum and explicit orientation. Ambiguous inversion orientation is excluded rather than invented. Raw distance matrices are quadratic in junction count; high-burden samples need more memory/time. Inspect conversion/mask audits to understand differences from SV32 counts.
+
+The upstream hg19 coordinate file defines footprint boundaries. Our default `pcawg_mask_policy: local_cen_telo_exclusion` additionally removes junctions whose endpoints lie within its centromere/telomere intervals. **This is local filtering, not upstream ClusterSV behavior.** The chromosome 1 centromere interval spans approximately 28.7 Mb, including the broad q-side region in that coordinate file. `primary_only` disables that additional filtering while retaining autosomes+X; it is a new analysis policy requiring a fresh output directory and revalidation. Timing annotation still fails if retained endpoints lack reference measurements.
+
+The readable `.clusters.tsv` preserves one row per retained junction and adds cluster size/ID, two footprint IDs/bounds, and `last_agglomeration_value`. The latter is an upstream comparison-count-scaled clustering statistic, not an adjusted FDR or a somatic-call confidence score. The headerless `.sv_distance_pvals` is likewise not a table of ordinary 0–1 p-values.
 
 Without copy-number information, clusters do **not** establish balanced rearrangements, templated insertions, chromoplexy, chromothripsis or foldback mechanisms. This route reports clusters, footprints and replication-timing annotations. It does not fit reference signatures.
+
+Only `pcawg_stage: clustering` is supported by the public launcher and signature entry point. Full classified feature construction and decomposition are outside this release; ClusterSV output alone is insufficient. The historical `pcawg_clustersv` method identifier is retained for configuration compatibility and does not mean the published PCAWG signature decomposition.
 
 ## Replication timing
 

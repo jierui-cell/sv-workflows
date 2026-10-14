@@ -4,6 +4,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +31,25 @@ def digest(path):
     with open(path,'rb') as f:
         for block in iter(lambda:f.read(1048576),b''): h.update(block)
     return h.hexdigest()
+
+
+def completed_exit_code(path):
+    """Read a verified structured sidecar, or either historical timing format."""
+    path = Path(path)
+    sidecar = Path(str(path) + '.status.json')
+    if sidecar.exists():
+        status = json.loads(sidecar.read_text())
+        if status['timing_sha256'] != digest(path):
+            raise ValueError('Timing file changed since command completion')
+        return int(status['exit_code'])
+    text = path.read_text()
+    try:
+        return int(json.loads(text.splitlines()[-1])['exit_code'])
+    except (ValueError, KeyError, IndexError):
+        exits = re.findall(r'^\s*Exit status:\s*(\d+)\s*$', text, re.M)
+        if not exits:
+            raise ValueError('No completed exit status in timing file')
+        return int(exits[-1])
 
 
 def patch_r_compatibility(source):
@@ -67,9 +87,10 @@ def main():
         if names!=['NORMAL','TUMOR']: raise ValueError('Unexpected GRIDSS sample order: '+str(names))
         if args.resume_qc:
             provenance=json.loads((out/'effective-settings.json').read_text())
-            timer=json.loads((out/'filter.time.txt').read_text().splitlines()[-1])
-            if timer['exit_code']!=0 or provenance['input_sha256']!=digest(source):
+            if completed_exit_code(out/'filter.time.txt')!=0 or provenance['input_sha256']!=digest(source):
                 raise ValueError('Cannot resume QC without completed filter and identical input')
+            if provenance['options'] != options or provenance['image_sha256'] != digest(image):
+                raise ValueError('Cannot resume QC with changed filter options or image')
             output_qc(out,names,run,provenance)
             return
         native='/usr/local/share/gridss-2.13.2-6'

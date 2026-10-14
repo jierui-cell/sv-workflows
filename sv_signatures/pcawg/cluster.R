@@ -34,7 +34,9 @@ last <- vapply(seq_len(max(res$clust_and_fps$clust)), function(idx) {
     values <- values[!is.na(values) & values < res$clustering_fdr_cutoff]
     if (length(values)) max(values) else 0
 }, numeric(1))
-out <- data.frame(res$clust_and_fps, clustering_fdr = last[res$clust_and_fps$clust])
+# Preserve upstream values, but do not label this comparison-count-scaled
+# clustering statistic as an adjusted FDR or an ordinary raw p-value.
+out <- data.frame(res$clust_and_fps, last_agglomeration_value = last[res$clust_and_fps$clust])
 write.table(out, paste0(args[4], '.sv_clusters_and_footprints.tsv'), sep = '\t',
             row.names = FALSE, col.names = FALSE, quote = FALSE)
 write.table(res$m, paste0(args[4], '.sv_distance_pvals'), sep = '\t',

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 """Fetch immutable third-party source revisions without altering existing checkouts."""
 import json
+import argparse
 import subprocess
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
 lock = json.loads((root / 'sv_signatures/pcawg/upstream.json').read_text())
-for name, destination in [('clustersv', root / 'resources/clustersv/source'),
-                          ('panprostate', root / 'resources/pcawg_signatures/panprostate')]:
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--clustersv-only',action='store_true',help='Fetch only the supported clustering source')
+args = parser.parse_args()
+sources = [('clustersv', root / 'resources/clustersv/source')]
+if not args.clustersv_only:
+    sources.append(('panprostate', root / 'resources/pcawg_signatures/panprostate'))
+for name, destination in sources:
     info = lock[name]
     if destination.exists():
         head = subprocess.check_output(['git', '-C', str(destination), 'rev-parse', 'HEAD'], text=True).strip()

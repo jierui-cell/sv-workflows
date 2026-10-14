@@ -5,6 +5,7 @@ import csv
 from contextlib import nullcontext
 import difflib
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,13 +16,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--pipeline-root', type=Path, required=True)
     parser.add_argument('--clustering-only', action='store_true')
+    parser.add_argument('--rscript',help='Use an explicit Rscript executable for distribution-level CI controls')
+    parser.add_argument('--clustersv-source',type=Path,help='Reuse an existing pinned checkout without modifying it')
     parser.add_argument('--workdir', type=Path, help='Keep synthetic fixtures and control outputs for review')
     args = parser.parse_args()
     root = args.pipeline_root.resolve()
     sys.path.insert(0, str(root / 'sv_signatures'))
     from run_clustersv import check_clusters, references, write_table
     rscript = root / 'sv_signatures/pcawg/Rscript.sh'
-    source = root / 'resources/clustersv/source'
+    rcommand = [shutil.which(args.rscript) or args.rscript,'--vanilla'] if args.rscript else ['bash',str(rscript)]
+    source = args.clustersv_source or root / 'resources/clustersv/source'
+    from run_clustersv import check_revision
+    check_revision(source, json.loads((root/'sv_signatures/pcawg/upstream.json').read_text())['clustersv']['commit'])
     if args.workdir:
         args.workdir.mkdir(parents=True, exist_ok=False)
     with (nullcontext(str(args.workdir)) if args.workdir else tempfile.TemporaryDirectory()) as directory:
@@ -34,7 +40,7 @@ def main():
                          '2\t119999999\t120000000\t2\t124999999\t125000000\tinv\t0\t+\t+\n'
                          '3\t49999999\t50000000\t4\t69999999\t70000000\ttra\t0\t-\t+\n')
         def cluster(input_path, prefix):
-            subprocess.run(['bash', str(rscript), str(root / 'sv_signatures/pcawg/cluster.R'),
+            subprocess.run(rcommand + [str(root / 'sv_signatures/pcawg/cluster.R'),
                             str(input_path), str(sizes), str(masks), str(prefix),
                             str(source / 'R/clustering_index.R'), '1', '.01', '.05', '.01'], check=True)
         prefix = tmp / 'wrapped'
@@ -45,7 +51,7 @@ def main():
         rows = {r['name']: r for r in csv.DictReader((tmp / 'clusters.tsv').open(), delimiter='\t')}
         assert rows['close1']['cluster_id'] == rows['close2']['cluster_id']
         stock = tmp / 'stock'
-        subprocess.run(['bash', str(rscript), str(source / 'R/run_cluster_sv.R'),
+        subprocess.run(rcommand + [str(source / 'R/run_cluster_sv.R'),
                         '-bedpe', str(bedpe), '-chr', str(sizes), '-cen_telo', str(masks),
                         '-out', str(stock), '-n', '1'], check=True)
         original = Path(str(stock) + '.sv_clusters_and_footprints.tsv').read_text()

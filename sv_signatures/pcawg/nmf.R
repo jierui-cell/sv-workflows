@@ -1,4 +1,6 @@
-# PCAWG uses KL-NMF; rank selection here follows the newer cophenetic survey.
+# Experimental local KL-NMF extension; NOT exact PCAWG/panprostate reproduction.
+# Deviations include repeated fits, factor flooring, and the local steepest-drop
+# rank rule. This script is not enabled by the public no-copy-number launcher.
 args <- commandArgs(trailingOnly = TRUE)
 stopifnot(length(args) == 10)
 suppressPackageStartupMessages(library(NMF))

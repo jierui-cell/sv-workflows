@@ -6,8 +6,12 @@ tumor=$3
 normal=$4
 step=initialization
 trap 'rc=$?; printf "FAILED step=%s line=%s exit=%s time=%s\n" "$step" "$LINENO" "$rc" "$(date -Is)" >&2; exit "$rc"' ERR
-: "${SLURM_JOB_ID:?Validation must run on a compute node through Slurm}"
-printf 'START pair=%s job=%s host=%s time=%s\n' "$pair_id" "$SLURM_JOB_ID" "$(hostname)" "$(date -Is)"
+job_id=${SLURM_JOB_ID:-${PBS_JOBID:-${LSB_JOBID:-${JOB_ID:-}}}}
+if [[ -z $job_id && ${5:-0} != 1 ]]; then
+    echo 'Preflight requires a scheduler allocation or explicit --allow-local on a workstation/allocated node.' >&2
+    exit 2
+fi
+printf 'START pair=%s job=%s host=%s time=%s\n' "$pair_id" "${job_id:-acknowledged_local}" "$(hostname)" "$(date -Is)"
 samtools --version
 cut -f1,2 "$reference_fai" > reference.contigs.tsv
 for role in tumor normal; do
@@ -23,7 +27,9 @@ for role in tumor normal; do
     awk -F '\t' '$1=="@RG" {for(i=2;i<=NF;i++) if($i~/^SM:/) print substr($i,4)}' "$role.header.sam" | sort -u > "$role.samples.txt"
     test "$(wc -l < "$role.samples.txt")" -eq 1
     step="$role.indexed_query"
-    samtools view -c "$bam" 'chr1:1000000-1001000' > "$role.interval_read_count.txt"
+    region=$(awk -F '\t' 'NR==1 {end=($2<1001?$2:1001); if(end<1)exit 1; printf "%s:1-%d",$1,end}' "$reference_fai")
+    [[ -n $region ]]
+    samtools view -c "$bam" "$region" > "$role.interval_read_count.txt"
 done
 step=distinct_sample_names
 if cmp -s tumor.samples.txt normal.samples.txt; then

@@ -125,17 +125,21 @@ def measure(output, metadata, command):
         raise ValueError('Benchmark settings must be a JSON object')
     output.parent.mkdir(parents=True, exist_ok=True)
     slurm_id = os.environ.get('SLURM_JOB_ID')
+    warnings = []
+    def warn(message):
+        warnings.append(message)
+        print('BENCHMARK WARNING: ' + message, file=sys.stderr, flush=True)
+    cgroup_method, cgroup_path = 'process_tree_sampled_rss_sum', None
+    baseline_resident = 0
     if slurm_id:
-        cgroup_method, cgroup_path = memory_cgroup()
-        if not (cgroup_path / 'memory.stat').is_file():
-            raise ValueError('Memory cgroup is not readable: ' + str(cgroup_path))
-        if ('job_' + slurm_id) not in cgroup_path.parts:
-            raise ValueError('Memory cgroup is not scoped to this Slurm job: ' + str(cgroup_path))
-        baseline_resident = cgroup_resident_kib(cgroup_method, cgroup_path)
-    else:
-        # PBS/LSF/local may share a cgroup. Never attribute other jobs' memory to this caller.
-        cgroup_method, cgroup_path = 'process_tree_sampled_rss_sum', None
-        baseline_resident = 0
+        try:
+            cgroup_method, cgroup_path = memory_cgroup()
+            if ('job_' + slurm_id) not in cgroup_path.parts:
+                raise ValueError('Memory cgroup is not scoped to this Slurm job')
+            baseline_resident = cgroup_resident_kib(cgroup_method, cgroup_path)
+        except (OSError, ValueError) as exc:
+            warn('Cgroup unavailable; using isolated process-tree RSS: ' + str(exc))
+            cgroup_method, cgroup_path = 'process_tree_sampled_rss_sum', None
     started_utc = utc_now()
     started = time.monotonic()
     child = subprocess.Popen(command, start_new_session=True)
@@ -155,8 +159,22 @@ def measure(output, metadata, command):
     peak_processes = 0
     try:
         while True:
-            pss, rss, count, unavailable = sample(child.pid)
-            resident = cgroup_resident_kib(cgroup_method, cgroup_path) if cgroup_path else rss
+            try:
+                pss, rss, count, unavailable = sample(child.pid)
+            except OSError as exc:
+                pss, rss, count, unavailable = 0, 0, 0, [type(exc).__name__]
+                if not unavailable_samples:
+                    warn('Process memory unavailable; caller will continue: ' + str(exc))
+            if cgroup_path:
+                try:
+                    resident = cgroup_resident_kib(cgroup_method, cgroup_path)
+                except (OSError, ValueError) as exc:
+                    warn('Cgroup sampling failed; using process-tree RSS for the entire run: ' + str(exc))
+                    cgroup_method, cgroup_path = 'process_tree_sampled_rss_sum', None
+                    peak_resident = peak_rss
+                    resident = rss
+            else:
+                resident = rss
             peak_resident = max(peak_resident, resident)
             samples += 1
             if unavailable:
@@ -197,7 +215,9 @@ def measure(output, metadata, command):
             'samples': samples,
             'samples_with_unavailable_process_memory': unavailable_samples,
             'unavailable_process_examples': unavailable_examples[:12],
-            'memory_status': ('complete' if peak_resident else 'unavailable'),
+            'memory_status': ('unavailable' if not peak_resident else
+                              'partial' if not cgroup_path and unavailable_samples else 'complete'),
+            'measurement_warnings': warnings,
             'limitations': 'One-second sampling may miss brief peaks. Job-cgroup resident includes small recorder overhead; process-tree RSS may double-count shared pages. PSS can be incomplete when setuid helpers block smaps access. Never pool different memory_method_id values or substitute page-cache-inclusive Slurm MaxRSS.',
             'command': command,
             'recorder_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
