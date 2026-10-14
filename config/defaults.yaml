@@ -48,6 +48,8 @@ brass:
   cpus: 8
   memory_gb: 64
   time: 24h
+  # Extra annotations/masks/microbial resources, NOT another human FASTA.
+  # Create once: python scripts/setup_brass.py
   bundle: resources/brass/bundle
   missing_statistics_policy: native_defaults
   min_group: 2

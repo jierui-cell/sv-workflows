@@ -38,7 +38,7 @@ sv-workflows/
 │   └── callsets.tsv          # VCF inventory for signature analysis
 ├── resources/
 │   ├── reference/reference.fa  # Alignment FASTA + matching indexes alongside it
-│   └── brass/bundle/         # Prepared BRASS bundle, when BRASS is selected
+│   └── brass/bundle/         # Extra BRASS annotations/masks; NOT a second human genome
 ├── containers/images/        # Created/populated by the image downloader
 ├── manifests/sv_manifest.tsv # Generated signature manifest
 ├── config/private-cohort.yaml
@@ -82,7 +82,19 @@ bwa index resources/reference/reference.fa
 samtools dict resources/reference/reference.fa > resources/reference/reference.dict
 ~~~
 
-BRASS also needs **`resources/brass/bundle/`**: [prepare or reuse a bundle](docs/setup.md#brass-bundle). Its image path and bundle path are already in the defaults. [Setup](docs/setup.md) lists each caller's resources.
+### 4. Set up BRASS's extra resources (once)
+
+**All five callers use the same human FASTA above.** BRASS additionally needs annotation/filtering files in `resources/brass/bundle/`: depth/GC masks, gene/chromosome annotations and microbial/viral sequences. This is **not a second human reference**.
+
+After preparing the shared reference, run this command from the checkout root on an allocated compute node with internet access:
+
+~~~bash
+python scripts/setup_brass.py
+~~~
+
+It downloads the two official Sanger archives (~3.1 GB), verifies their checksums, extracts the needed files, adapts chromosome labels to your shared reference and runs BRASS's native resource checks. It also downloads the pinned BRASS image if absent. The resulting folder already matches the YAML default; no path edits are needed. Repeat the command to verify/reuse an existing bundle.
+
+For Singularity, add `--engine singularity`. If you use custom paths, pass the same `--config config/private-cohort.yaml` as your caller run. The one-command route prepares **chr-prefixed GRCh37** resources; skip this step when BRASS is not selected. [Resource contents, download sources, logs and reuse](docs/setup.md#brass-bundle).
 
 ## Usage Instructions
 

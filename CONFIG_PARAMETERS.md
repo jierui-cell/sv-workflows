@@ -52,7 +52,9 @@ Choose the backend with `--profile`; use `--site-config` for scheduler-specific 
 | SvABA image | `containers/images/svaba-1.2.0--h69ac913_1.sif` |
 | GRIDSS image | `containers/images/gridss-2.13.2--h96c455f_6.sif` |
 | BRASS image | `containers/images/brass-v6.3.4.sif` |
-| BRASS bundle | `resources/brass/bundle/` |
+| BRASS resource bundle | `resources/brass/bundle/`; extra annotations/masks, not another human FASTA |
+
+All callers use the global `reference` FASTA. Set up BRASS's additional resources once with `python scripts/setup_brass.py`; add `--config config/private-cohort.yaml` to use your custom reference/image/bundle paths. The setup command also accepts the launcher's `--set KEY=VALUE` overrides. [BRASS setup](docs/setup.md#brass-bundle).
 
 Run `python scripts/workflow.py callers --config config/private-cohort.yaml --check-files` to inspect input/resource presence without submission. It requires only selected callers' files and selected pairs' BAMs/indexes. `--dry-run` instead previews YAML/commands; the flags serve different purposes.
 

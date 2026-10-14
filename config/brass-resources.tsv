@@ -1,4 +1,3 @@
-file	md5
-CNV_SV_ref_GRCh37d5_brass6+.tar.gz	aa6768c3ec09531230116d9e7db45b7c
-VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz	f22a66328e73a44802e21ff13baad984
-cytoband_GRCh37d5.txt	d9f76ce169bae95462d0343c14769c13
+file	md5	sha256	url
+CNV_SV_ref_GRCh37d5_brass6+.tar.gz	aa6768c3ec09531230116d9e7db45b7c	bd1dc8f656f28422567441d4fb4e5ebbdf4b37ad3aaafc9169eaeaabdca14d35	https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/CNV_SV_ref_GRCh37d5_brass6+.tar.gz
+VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz	f22a66328e73a44802e21ff13baad984	9a4e6784de19ce675bc10a17cb6206c06d53bab6805eb61fe1662f7801a615bf	https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz

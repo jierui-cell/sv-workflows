@@ -50,22 +50,69 @@ Automatic preflight checks BAM/reference dictionaries, the declared build, sampl
 
 ## BRASS Bundle
 
-BRASS uses a GRCh37 bundle containing depth/GC masks, centromere/telomere and cytoband annotations, a VAGrENT transcript cache and microbial/viral resources. The bundle adapter matches sequence identities, adapts chromosome labels and checks the native readers. Coordinates remain unchanged.
+**BRASS uses the same human FASTA as every other caller:** `reference` in your YAML. The additional `brass.bundle` folder holds annotations and filtering resources, not a different human assembly.
 
-Resource archive identities are listed in `config/brass-resources.tsv`. Collect the extracted publisher files in `resources/brass/source/`, with the publisher reference's sequence dictionary at `resources/brass/source/reference.dict`. That dictionary must include the original sequence identities (MD5s), which the adapter compares with your alignment reference. Run preparation in a compute allocation:
+### One-command setup
+
+Prepare the shared FASTA, `.fai` and `.dict` as above, then run from the checkout root in a compute allocation with internet access. Load Apptainer (or Singularity), `curl` and `patch`; the Python environment is the same one used by the launcher:
+
+~~~bash
+python scripts/setup_brass.py
+~~~
+
+On Singularity sites:
+
+~~~bash
+python scripts/setup_brass.py --engine singularity
+~~~
+
+If your cohort YAML changes resource paths or the container engine, use it here too:
+
+~~~bash
+python scripts/setup_brass.py --config config/private-cohort.yaml
+~~~
+
+The command performs these steps automatically:
+
+1. Checks the shared reference's sequence names, lengths and MD5 identities against the versioned GRCh37d5 dictionary, before downloading.
+2. Downloads the pinned BRASS container if it is missing, then the two official Sanger archives (~3.1 GB) into `resources/brass/downloads/`. It verifies pinned MD5 and SHA-256 checksums and resumes interrupted transfers.
+3. Extracts only the BRASS and VAGrENT files used by this workflow into `resources/brass/source/`. It leaves unrelated ASCAT files and the optional normal panel unused.
+4. Adapts chromosome labels, rebuilds resource indexes and checks the resources with BRASS/VAGrENT's native readers. **No coordinates are lifted over, BAMs realigned or human genomes replaced.**
+5. Publishes the validated folder at `brass.bundle` (default `resources/brass/bundle/`) and records the outcome in `logs/brass-setup-TIMESTAMP/status.json` and `setup.log`.
+
+The download URLs and checksums are versioned in [config/brass-resources.tsv](../config/brass-resources.tsv). These are Sanger's [published reference archives](https://github.com/cancerit/dockstore-cgpwgs/wiki/Reference-archives):
+
+| Archive | Resources used by BRASS |
+| --- | --- |
+| `CNV_SV_ref_GRCh37d5_brass6+.tar.gz` | High-depth masks, GC windows, centromere/telomere and cytoband annotations, viral/bacterial sequences |
+| `VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz` | Transcript annotation cache and transcript sequences |
+
+The small [GRCh37d5 dictionary](../config/brass-GRCh37d5.dict) is included as public reference metadata: chromosome names, lengths and sequence MD5s derived from the [1000 Genomes hs37d5 reference](https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/). Its header records the source URL and compressed FASTA SHA-256. You do **not** need to download another human FASTA or find a separate dictionary yourself.
+
+This route prepares **chr-prefixed GRCh37** resources (`chr1`–`chr22`, `chrX`, `chrY` for BRASS calling). It checks sequence identity rather than assuming all files labelled GRCh37 are interchangeable. GRCh38 resources need a separate compatible preparation route.
+
+### Reuse and restart
+
+Run the same setup command again to verify and reuse a completed bundle, without downloading or rebuilding it. Shared resources can be reused across cohorts with the same reference and pinned BRASS image. Keep `resources/brass/source/`: the bundle links unchanged transcript/microbial files there. After successful setup, the cached archives in `resources/brass/downloads/` are optional to retain.
+
+Interrupted transfers retain `.partial` files. Completed extraction is cached with checksums, and the final bundle appears only after validation succeeds. If preparation fails, inspect the named step in `status.json` and its `setup.log`, then rerun the same command. Failed staged bundles remain under `.brass-bundle-*` beside the requested output for diagnosis; they are not used for calling. An existing completed bundle with changed inputs is reported as a mismatch: select a new `brass.bundle` directory for the new reference/image.
+
+### Existing publisher files or an adapted bundle
+
+If you already have the extracted publisher files, you can skip downloading. Put the `CNV_SV_ref/` and `VAGrENT_ref_GRCh37d5_ensembl_75/` directories under `resources/brass/source/`, then run the lower-level preparation command:
 
 ~~~bash
 python scripts/prepare_brass_bundle.py \
   --source resources/brass/source \
-  --source-dict resources/brass/source/reference.dict \
+  --source-dict config/brass-GRCh37d5.dict \
   --reference resources/reference/reference.fa \
   --image containers/images/brass-v6.3.4.sif \
   --output resources/brass/bundle --engine apptainer
 ~~~
 
-Use `--engine singularity` on Singularity sites. For resources already adapted by this framework, `--reuse-adapted` accepts the existing directory as `--source`, without `--source-dict`. It checks hashes, reruns native readers and creates a new validated bundle; keep `--output resources/brass/bundle` to use the default. It does not overwrite an existing output directory.
+Use `--engine singularity` on Singularity sites. For resources already adapted by this framework, `--reuse-adapted` accepts the existing directory as `--source`, without `--source-dict`. It checks hashes, reruns native readers and creates a new validated bundle. Use a new `--output` directory: the lower-level preparation command does not overwrite existing bundles.
 
-The default `brass.bundle` already points to that output. The current bundle route uses chr-prefixed GRCh37 resources. Native validation creates `COMPATIBILITY_VALIDATED`, `native-validation.json`, `bundle-receipt.json` and the runtime overlay along with the resource files. The setup checker verifies their presence/status before BRASS task submission.
+Native validation creates `COMPATIBILITY_VALIDATED`, `native-validation.json`, `bundle-receipt.json` and the runtime overlay alongside the resources. The caller launcher's automatic setup check verifies required files and validation status before BRASS task submission. These checks are separate from the shared human reference check because they validate different resources.
 
 ## Optional Setup Checks
 
