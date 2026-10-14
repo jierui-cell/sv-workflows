@@ -1,0 +1,25 @@
+# Copy to config/private-cohort.yaml and edit paths/HPC settings.
+# Partial overlay; omitted options retain config/defaults.yaml values.
+input: /absolute/path/to/private/paired_samples.tsv
+reference: /absolute/path/to/alignment_reference.fa
+dataset_id: YOUR_COHORT_LABEL
+outdir: results/cohort_run01
+callers: manta,delly
+container_engine: apptainer # Or singularity.
+slurm_account: YOUR_ACCOUNT
+slurm_partition: YOUR_PARTITION
+max_parallel_callers: 3
+manta_image: containers/images/manta-1.6.0--py27h9948957_6.sif
+delly:
+  image: containers/images/delly-2.6.0--h3752d28_0.sif
+svaba:
+  image: containers/images/svaba-1.2.0--h69ac913_1.sif
+gridss:
+  image: containers/images/gridss-2.13.2--h96c455f_6.sif
+brass:
+  image: containers/images/brass-v6.3.4.sif
+  bundle: /absolute/path/to/validated-brass-bundle
+# Optional modules; otherwise preload tools before submission.
+modules_samtools: null
+modules_bcftools: null
+modules_calling: null

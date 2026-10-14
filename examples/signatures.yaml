@@ -1,0 +1,14 @@
+# Copy to config/private-signatures.yaml after preparing the signature environment.
+# Partial overlay of config/signatures.yaml, not the caller YAML.
+manifest: manifests/sv_manifest.tsv
+outdir: results/cosmic_run01
+python: sv_signatures/.venv/bin/python
+method: cosmic_sv32 # Or pcawg_clustersv after ClusterSV/timing reference setup.
+pcawg_stage: clustering # CN-free; advanced stages require supplied classifications.
+groups: all
+account: YOUR_ACCOUNT
+partition: YOUR_PARTITION
+max_parallel_groups: 4
+group_cpus: 4
+group_memory_gb: 32
+group_time: 4h

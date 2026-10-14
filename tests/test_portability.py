@@ -12,6 +12,30 @@ from workflow import merge, override, read_yaml, validate
 from build_sv_manifest import build
 
 class PortabilityTests(unittest.TestCase):
+    def test_copyable_caller_template(self):
+        cfg=merge(read_yaml(ROOT/'config/defaults.yaml'),read_yaml(ROOT/'examples/cohort.yaml'))
+        validate(cfg,'callers')
+        self.assertEqual(cfg['callers'],'manta,delly')
+        self.assertEqual(cfg['manta_options']['minPassSomaticScore'],30)
+        self.assertEqual(cfg['brass']['missing_statistics_policy'],'native_defaults')
+
+    def test_copyable_signature_template(self):
+        cfg=merge(read_yaml(ROOT/'config/signatures.yaml'),read_yaml(ROOT/'examples/signatures.yaml'))
+        validate(cfg,'signatures')
+        cfg['method']='pcawg_clustersv'
+        validate(cfg,'signatures')
+        self.assertEqual(cfg['pcawg_stage'],'clustering')
+
+    def test_documented_toy_output(self):
+        sys.path.insert(0,str(ROOT/'sv_signatures'))
+        from vcf_to_bedpe import convert
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            n=convert(ROOT/'examples/toy.somatic.vcf','manta','TOY_PAIR',root/'bedpe.tsv',root/'audit.tsv',root/'qc.json')
+            self.assertEqual(n,3)
+            with (root/'bedpe.tsv').open() as actual,(ROOT/'examples/toy_expected/toy.bedpe.tsv').open() as expected:
+                self.assertEqual(list(csv.DictReader(actual,delimiter='\t')),list(csv.DictReader(expected,delimiter='\t')))
+
     def test_nested_override_preserves_defaults(self):
         base=read_yaml(ROOT/'config/defaults.yaml')
         cfg=merge(base,{'delly':{'options':{'map_qual':2}}})
