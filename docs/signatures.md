@@ -51,7 +51,7 @@ python sv_signatures/pcawg/prepare_sources.py --clustersv-only
 Rscript sv_signatures/pcawg/setup_env.R "$PWD"
 ~~~
 
-The same R environment contains NMF. Construct the reusable timing reference below once, then launch:
+The same R environment contains NMF. You can launch directly from your VCF manifest; timing annotation is optional:
 
 ~~~bash
 sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
@@ -64,7 +64,7 @@ The default `pcawg_stage: signatures` runs the full sequence:
 
 ~~~text
 VCFs → Oriented BEDPE → ClusterSV → CN-free feature matrix → Seeded KL-NMF
-                                 └→ Footprints + endpoint timing
+                                 └→ Footprints + optional endpoint timing
 ~~~
 
 ## CN-Free Features and De Novo NMF
@@ -117,11 +117,13 @@ Readable `.clusters.tsv` files contain one row per junction with cluster ID/size
 
 The last-agglomeration and `.sv_distance_pvals` values are upstream comparison-count-scaled statistics, not ordinary 0–1 p-values or somatic confidence scores.
 
-The default `local_cen_telo_exclusion` additionally removes endpoints in the upstream boundary file's centromere/telomere intervals. This is our filtering policy; upstream ClusterSV uses those coordinates for footprints. The chromosome 1 centromere interval is broad (~28.7 Mb). Select `primary_only` to retain those endpoints on autosomes+X. The timing annotator reports any endpoint without a measured reference value.
+The default `local_cen_telo_exclusion` additionally removes endpoints in the upstream boundary file's centromere/telomere intervals. This is our filtering policy; upstream ClusterSV uses those coordinates for footprints. The chromosome 1 centromere interval is broad (~28.7 Mb). Select `primary_only` to retain those endpoints on autosomes+X. When timing is enabled, the annotator reports any endpoint without a measured reference value.
 
 The historical method key `pcawg_clustersv` is retained for compatibility. De novo NMF is a local downstream analysis, not reconstruction of the published PCAWG 16 reference signatures. High-junction-count samples can need more memory because ClusterSV builds quadratic distance matrices.
 
 ## Replication Timing
+
+This optional annotation is independent of the CN-free features/NMF. Leave `pcawg_timing_source: none` (default) for direct VCF-to-signature analysis. Set it to `reference` after preparing the reusable reference below.
 
 The reference averages public ENCODE/UW GRCh37 NHEK, GM12878 and IMR90 tracks in 1-kb bins, then fixes genome-wide tertiles: low scores late, middle mid, high early. Tertiles are our category policy.
 
@@ -140,4 +142,4 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
   scripts/run.slurm.sh timing --config config/private-timing.yaml
 ~~~
 
-Set `pcawg_timing_reference` to the verified directory if you changed its default path. Reference construction records input/output hashes and verification; reuse it across GRCh37 cohorts without recalculating cutoffs per sample.
+Set `pcawg_timing_reference` to the verified directory and `pcawg_timing_source: reference` in signature YAML. Reference construction records input/output hashes and verification; reuse it across GRCh37 cohorts without recalculating cutoffs per sample.

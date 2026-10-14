@@ -116,7 +116,7 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | `pcawg_min_size_bp` | `1`; preserve short oriented junctions |
 | `pcawg_fdr_first`, `pcawg_fdr_final`, `pcawg_footprint_fdr` | `0.01`, `0.05`, `0.01` |
 | `pcawg_mask_policy` | `local_cen_telo_exclusion`; local endpoint filtering, or `primary_only` |
-| `pcawg_timing_source` | `reference`; verified fixed genome-wide tertiles |
+| `pcawg_timing_source` | `none`; optional `reference` adds verified fixed-tertile annotation |
 | `account`, `partition` | `null`; signature scheduler keys use these names |
 | `group_cpus`, `group_memory_gb`, `group_time` | `4`, `32`, `4h` |
 | `max_parallel_groups` | `4` simultaneous cohort/caller groups |

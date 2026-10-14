@@ -20,7 +20,7 @@ pcawg_seed: 1234
 pcawg_nmf_epsilon: 2.220446049250313e-16
 pcawg_nmf_max_iter: 2000
 pcawg_min_size_bp: 1  # Preserve short junctions relevant to complex events
-pcawg_timing_source: reference  # Verified fixed-tertile reference is required by the supported route.
+pcawg_timing_source: none  # none | reference; timing is an optional annotation, not an NMF input.
 pcawg_timing_reference: resources/replication_timing/pcawg_mean_tertiles
 pcawg_fdr_first: 0.01
 pcawg_fdr_final: 0.05

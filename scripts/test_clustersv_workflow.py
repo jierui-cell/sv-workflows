@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--clustersv-source',type=Path,default=ROOT/'resources/clustersv/source')
     parser.add_argument('--rscript',default='Rscript')
+    parser.add_argument('--without-timing',action='store_true')
     args = parser.parse_args()
     out = args.out.resolve(); out.mkdir(parents=True,exist_ok=False)
     source = args.clustersv_source.resolve()
@@ -61,6 +62,7 @@ def main():
     cfg.update(manifest=str(manifest),method='pcawg_clustersv',pcawg_stage='signatures',
                python=sys.executable,pcawg_rscript=str(rwrapper),clustersv_source=str(source),
                pcawg_timing_reference=str(timing),outdir=str(out/'results'),group_cpus=1,
+               pcawg_timing_source='none' if args.without_timing else 'reference',
                group_memory_gb=8,max_parallel_groups=1,pcawg_rank=2,pcawg_nrun=3,
                pcawg_nmf_max_iter=500)
     params = out/'params.yaml'; params.write_text(yaml.safe_dump(cfg))
@@ -71,6 +73,7 @@ def main():
     result = verify(group,{'S0','S1','S2'})
     assert result['junctions'] == 12 and result['features'] == result['signatures'] == 'completed'
     assert json.loads((group/'verification.json').read_text())['status'] == 'verified'
-    print('PASS actual signature main.nf: VCF → clustering/timing → 38 features → NMF → verification')
+    assert (group/'audit/S0.replication.tsv').exists() != args.without_timing
+    print('PASS actual signature main.nf: VCF → clustering → 38 features → NMF → verification; timing=' + str(not args.without_timing))
 
 if __name__ == '__main__': main()

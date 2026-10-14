@@ -77,6 +77,9 @@ class CaptureAndNMFTTests(unittest.TestCase):
 
     def test_nmf_settings_and_capture_signature_guard(self):
         cfg = read_yaml(ROOT/'config/signatures.yaml'); cfg['method'] = 'pcawg_clustersv'
+        self.assertEqual(cfg['pcawg_timing_source'],'none')
+        cfg['pcawg_timing_source'] = 'reference'; validate(cfg,'signatures')
+        cfg['pcawg_timing_source'] = 'none'
         for stage in ('clustering','features','signatures'):
             cfg['pcawg_stage'] = stage; validate(cfg,'signatures')
         for key,value in [('pcawg_rank',1),('pcawg_nrun',0),('pcawg_rank_min',1),('pcawg_nmf_epsilon',0)]:

@@ -119,8 +119,8 @@ def validate(config, mode):
             raise ValueError('pcawg_rank must be 0 (automatic) or an integer >=2')
         if type(config['pcawg_nmf_epsilon']) not in (int,float) or not 0 < config['pcawg_nmf_epsilon'] < 1:
             raise ValueError('pcawg_nmf_epsilon must be between 0 and 1')
-        if config['method'] == 'pcawg_clustersv' and config['pcawg_timing_source'] != 'reference':
-            raise ValueError('The supported ClusterSV route requires the verified timing reference')
+        if config['pcawg_timing_source'] not in ('none','reference'):
+            raise ValueError('pcawg_timing_source must be none or reference')
         if config.get('pcawg_mask_policy') not in ('local_cen_telo_exclusion','primary_only'):
             raise ValueError('Unknown ClusterSV mask policy')
 

@@ -8,7 +8,7 @@
 | GRIDSS | Joint calls and native somatic subsets | Baseline without a panel of normals or BSgenome |
 | BRASS | Annotated paired SVs | Validated GRCh37 resource bundle; missing statistics use labeled native defaults |
 | COSMIC SV32 | Counts and SV1–SV12 exposures | GRCh37 WGS, caller-specific reference fitting |
-| ClusterSV + NMF | Clusters, footprints, timing, CN-free counts and de novo signatures | GRCh37 WGS; local 38-channel feature scheme |
+| ClusterSV + NMF | Clusters, footprints, CN-free counts, de novo signatures and optional timing | GRCh37 WGS; local 38-channel feature scheme |
 
 Caller preflight checks declared GRCh37/GRCh38 reference dictionaries. BRASS's bundle adapter currently uses GRCh37. Signature routes use GRCh37 references.
 

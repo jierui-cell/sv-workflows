@@ -12,7 +12,7 @@ params.pair_id = ''
 params.pair_ids = ''
 params.pcawg_stage = 'signatures'
 params.pcawg_min_size_bp = 1
-params.pcawg_timing_source = 'reference'  // reference | supplied (legacy prepared annotations)
+params.pcawg_timing_source = 'none'  // Optional annotation: none | reference
 params.pcawg_timing_reference = "${projectDir}/../resources/replication_timing/pcawg_mean_tertiles"
 params.clustersv_source = "${projectDir}/../resources/clustersv/source"
 params.pcawg_rscript = "${projectDir}/pcawg/Rscript.sh"
@@ -93,9 +93,7 @@ workflow {
     if (params.sequencing_type != 'WGS') error 'Genome-wide signature methods require WGS; capture assays need a capture-aware model'
     if (!(params.method in ['cosmic_sv32', 'pcawg_clustersv'])) error 'method must be cosmic_sv32 or pcawg_clustersv'
     if (!(params.pcawg_stage in ['clustering', 'features', 'signatures'])) error 'pcawg_stage must be clustering, features or signatures'
-    if (!(params.pcawg_timing_source in ['reference','supplied'])) error 'pcawg_timing_source must be reference or supplied'
-    if (params.method == 'pcawg_clustersv' && params.pcawg_timing_source != 'reference')
-        error 'The public ClusterSV route requires the verified timing reference'
+    if (!(params.pcawg_timing_source in ['none','reference'])) error 'pcawg_timing_source must be none or reference'
     def resolvedOutdir = file(params.outdir ?: "${projectDir}/../results/${params.method == 'cosmic_sv32' ? 'sv_signatures_corrected' : 'sv_signatures_pcawg'}").toAbsolutePath()
     def manifest = file(params.manifest, checkIfExists: true)
     def lines = manifest.readLines()

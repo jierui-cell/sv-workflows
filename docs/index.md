@@ -19,6 +19,6 @@ Input validation is built into every run. There is no separate pilot requirement
 | WGS: Manta, DELLY, GRIDSS, SvABA, BRASS | Paired SV calls, QC, runtime and memory |
 | WES / targeted: Manta | Capture-aware paired SV calls with the same launcher |
 | COSMIC SV32 | 32-channel counts and SV1–SV12 exposures |
-| ClusterSV + NMF | Clusters, footprints, timing, CN-free counts and de novo signatures |
+| ClusterSV + NMF | Clusters, footprints, CN-free counts and de novo signatures; optional timing |
 
 [Parameters](../CONFIG_PARAMETERS.md) · [HPC deployment](hpc.md) · [Inputs and results](inputs-outputs.md) · [Method scope](workflow-status.md) · [Tests](validation.md) · [Performance](performance.md)

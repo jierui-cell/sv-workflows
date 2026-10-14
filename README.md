@@ -131,7 +131,7 @@ Set the manifest and HPC values, complete the one-time [signature setup](docs/si
 | Route | What it does | Main outputs |
 | --- | --- | --- |
 | `cosmic_sv32` | SV32 counts → COSMIC SV1–SV12 fit | Count matrix and sample exposures |
-| `pcawg_clustersv` | ClusterSV → CN-free features → de novo NMF | Clusters, footprints, timing, 38-channel counts, signatures and activities |
+| `pcawg_clustersv` | ClusterSV → CN-free features → de novo NMF | Clusters, footprints, 38-channel counts, signatures and activities; optional timing |
 
 ~~~bash
 # COSMIC reference fitting
@@ -146,7 +146,7 @@ sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
   --set method=pcawg_clustersv --set outdir=results/clustersv_run01
 ~~~
 
-Groups run independently by cohort and caller. NMF selects a rank from repeated seeded fits; `--set pcawg_rank=3` selects three components. Use `pcawg_stage=features` or `clustering` to stop earlier. The CN-free 38-channel scheme and `cSV1…` labels describe cohort-specific patterns, not the published PCAWG 44-feature matrix or reference signatures. [Feature definitions and NMF](docs/signatures.md#cn-free-features-and-de-novo-nmf).
+Groups run independently by cohort and caller. NMF selects a rank from repeated seeded fits; `--set pcawg_rank=3` selects three components. Use `pcawg_stage=features` or `clustering` to stop earlier. Timing is optional and requires no setup for the default de novo route. The CN-free 38-channel scheme and `cSV1…` labels describe cohort-specific patterns, not the published PCAWG 44-feature matrix or reference signatures. [Feature definitions and NMF](docs/signatures.md#cn-free-features-and-de-novo-nmf).
 
 ## Retrieve Your Results
 

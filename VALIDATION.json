@@ -43,7 +43,7 @@
   },
   "clustersv_signature_entrypoint": {
     "status": "passed",
-    "scope": "actual sv_signatures/main.nf: synthetic VCFs, ClusterSV, synthetic timing annotation, CN-free features, NMF and output verification",
+    "scope": "actual sv_signatures/main.nf: synthetic VCFs, ClusterSV, CN-free features, NMF and verification, with timing enabled and disabled",
     "samples": 3,
     "junctions": 12,
     "channels": 38
