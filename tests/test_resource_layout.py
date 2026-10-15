@@ -151,6 +151,7 @@ class ResourceLayoutTests(unittest.TestCase):
     def test_signature_environment_and_manifest_inputs(self):
         cfg = workflow.read_yaml(ROOT/'config/signatures.yaml')
         cfg['python'] = sys.executable
+        cfg['manifest'] = 'manifests/sv_manifest.tsv'
         path = self.root/cfg['manifest']; path.parent.mkdir()
         vcf = self.touch('inputs/synthetic.vcf')
         with path.open('w') as handle:

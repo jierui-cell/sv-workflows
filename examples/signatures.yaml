@@ -1,6 +1,6 @@
 # Copy to config/private-signatures.yaml after preparing the signature environment.
 # Partial overlay of config/signatures.yaml, not the caller YAML.
-manifest: manifests/sv_manifest.tsv
+caller_config: config/private-cohort.yaml # Same YAML used for the SV caller run.
 outdir: results/cosmic_run01
 python: sv_signatures/.venv/bin/python
 method: cosmic_sv32 # Active signature route; PCAWG/ClusterSV is on hold.

@@ -4,18 +4,29 @@
 
 **PCAWG/ClusterSV signature analysis is on hold.** Clustering, feature construction, de novo NMF and related analysis are not being run. The implementation and existing outputs are retained for a later review. Selecting `method=pcawg_clustersv` reports the hold before submitting analysis tasks.
 
-## Supply Your Callsets
+## Use Your Caller Results
 
-Copy the five-column [template](../examples/callsets.tsv) to `inputs/callsets.tsv` and edit its rows to reference your caller outputs, then:
+After SV calling finishes, copy the signature settings:
 
 ~~~bash
-mkdir -p inputs manifests
-python scripts/build_sv_manifest.py --inventory inputs/callsets.tsv \
-  --output manifests/sv_manifest.tsv
 cp examples/signatures.yaml config/private-signatures.yaml
 ~~~
 
-The manifest (`manifests/sv_manifest.tsv`) and Python environment (`sv_signatures/.venv/bin/python`) already match the defaults. Set your account/partition and output directory. Use GRCh37 WGS callsets. The pipeline verifies source hashes and VCF primary-contig lengths before conversion. Groups run independently by cohort and caller.
+Set your account/partition and signature output directory. The default `caller_config: config/private-cohort.yaml` points to the YAML used for SV calling. The launcher reads that file's output directory, cohort label, samplesheet and caller selection, selects the completed SV VCFs, and creates the hashed manifest automatically.
+
+| Caller | VCF used for signatures |
+| --- | --- |
+| Manta | `somaticSV.vcf.gz` |
+| DELLY | `somaticSV.vcf.gz` |
+| SvABA | `PAIR.svaba.somatic.sv.vcf` |
+| GRIDSS | `somatic.high_confidence.vcf.gz` |
+| BRASS | `*.annot.vcf.gz` |
+
+Both native and compact publishing layouts are supported. Completion records and technical output QC identify the finished callsets. Signature conversion retains the existing caller-specific event filters. The automatic route uses GRCh37 WGS caller results and checks that build/assay settings agree.
+
+For a different caller YAML, change `caller_config` in your signature YAML. If the caller run used command-line overrides, point it to the saved `logs/callers-TIMESTAMP/resolved.yaml` to use that run's exact settings. Use `groups` and `pair_ids` to select a subset of callers/samples. Each selected callset must be completed.
+
+The generated `input_manifest.tsv` and `signature-inputs.json` are saved in `logs/signatures-TIMESTAMP/`. A content-addressed manifest under `.nextflow/signature-manifests/` keeps its path and modification time stable for unchanged inputs. The pipeline verifies VCF hashes and primary-contig lengths during conversion. Groups run independently by cohort and caller.
 
 ## Install Once
 
@@ -27,6 +38,26 @@ sv_signatures/.venv/bin/python -m pip install -r sv_signatures/requirements.lock
 COSMIC does not require R, ClusterSV, copy-number inputs or replication-timing reference construction.
 
 You can verify input files and the environment executable with `python scripts/workflow.py signatures --config config/private-signatures.yaml --check-files`. The same check runs automatically at launch.
+
+## External VCFs (Optional)
+
+For VCFs produced outside this framework, use the five-column [inventory template](../examples/callsets.tsv):
+
+~~~bash
+mkdir -p inputs manifests
+cp examples/callsets.tsv inputs/callsets.tsv
+# Fill the inventory with your external VCF paths, then:
+python scripts/build_sv_manifest.py --inventory inputs/callsets.tsv \
+  --output manifests/sv_manifest.tsv
+~~~
+
+Set this in your signature YAML:
+
+~~~yaml
+manifest: manifests/sv_manifest.tsv
+~~~
+
+An explicit `manifest` selects these inputs instead of reading `caller_config`. This also supports a combined inventory from multiple cohorts. Leave `manifest: null` for automatic caller-result discovery.
 
 ## Launch COSMIC SV32
 

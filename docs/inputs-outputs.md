@@ -14,7 +14,9 @@ Missing BRASS purity/ploidy uses `native_defaults`, recorded in effective settin
 
 ## Signature Manifest
 
-The exact TSV header is `cohort pair_id caller vcf source_status source_sha256`. One row identifies one caller's output for one pair. The manifest builder takes `inputs/callsets.tsv`, validates identifiers, resolves VCF paths to absolute paths, computes source hashes and writes `manifests/sv_manifest.tsv`.
+The exact TSV header is `cohort pair_id caller vcf source_status source_sha256`. One row identifies one caller's output for one pair. By default, the signature launcher reads `caller_config` (`config/private-cohort.yaml`), locates completed caller VCFs and generates this manifest automatically. It records absolute VCF paths, technical completion status and SHA-256 hashes in `logs/signatures-TIMESTAMP/input_manifest.tsv`, with source-selection metadata in `signature-inputs.json`.
+
+For external VCFs, the optional manifest builder reads `inputs/callsets.tsv` and writes `manifests/sv_manifest.tsv`; set `manifest` in your signature YAML to use it. [Input options](signatures.md#external-vcfs-optional).
 
 Use final somatic VCFs for signature input. GRIDSS joint calls remain a separate output before somatic filtering.
 

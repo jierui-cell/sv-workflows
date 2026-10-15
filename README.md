@@ -35,15 +35,15 @@ sv-workflows/
 │   ├── samplesheet.tsv       # Your paired samples
 │   ├── bams/                 # BAMs + indexes; existing files may be linked here
 │   ├── regions/              # Optional targets/exclusions
-│   └── callsets.tsv          # VCF inventory for signature analysis
+│   └── callsets.tsv          # Optional inventory for externally generated VCFs
 ├── resources/
 │   ├── reference/reference.fa  # Alignment FASTA + matching indexes alongside it
 │   └── brass/bundle/         # Extra BRASS annotations/masks; NOT a second human genome
 ├── containers/images/        # Created/populated by the image downloader
-├── manifests/sv_manifest.tsv # Generated signature manifest
+├── manifests/sv_manifest.tsv # Optional hashed manifest for external VCFs
 ├── config/private-cohort.yaml
 ├── results/                  # Created by the workflow
-├── logs/                     # Settings, setup checks and run logs
+├── logs/                     # Settings, automatic signature manifests and run logs
 └── work/                     # Task files for resume
 ~~~
 
@@ -240,17 +240,15 @@ You receive the same Manta VCF, QC and benchmark files described below. **This l
 
 ## SV Signature Analysis
 
-Copy [examples/callsets.tsv](examples/callsets.tsv) to `inputs/callsets.tsv`, fill it with your completed caller VCFs, then build the hashed manifest:
+Signature analysis automatically uses the completed VCFs from your SV caller run. It reads `config/private-cohort.yaml` to find the output folder, cohort, samples and callers.
 
 ~~~bash
-mkdir -p inputs manifests
-cp examples/callsets.tsv inputs/callsets.tsv
-python scripts/build_sv_manifest.py --inventory inputs/callsets.tsv \
-  --output manifests/sv_manifest.tsv
 cp examples/signatures.yaml config/private-signatures.yaml
 ~~~
 
-The manifest and Python environment paths already match the standard layout. Set your HPC values, complete the one-time [signature setup](docs/signatures.md), and run COSMIC SV32. You can check its files with `python scripts/workflow.py signatures --config config/private-signatures.yaml --check-files`.
+Set your HPC account/partition in this signature YAML, complete the one-time [signature environment setup](docs/signatures.md#install-once), and submit below. The launcher selects the final caller outputs and builds the hashed input manifest automatically. GRIDSS uses its high-confidence somatic VCF.
+
+If your caller YAML has another filename, set `caller_config` in the signature YAML to that file. [External VCFs and other input options](docs/signatures.md#external-vcfs-optional).
 
 | Route | What it does | Main outputs |
 | --- | --- | --- |

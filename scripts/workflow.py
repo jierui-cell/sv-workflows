@@ -109,6 +109,12 @@ def validate(config, mode):
             raise ValueError('The supported signature routes require genome_build=GRCh37')
         if config['method'] != 'cosmic_sv32':
             raise ValueError('Unknown signature method')
+        for key in ('groups','pair_id','pair_ids'):
+            if not isinstance(config[key],str):
+                raise ValueError(key + ' must be a string')
+        source_key = 'manifest' if config.get('manifest') else 'caller_config'
+        if not isinstance(config.get(source_key),str) or not config[source_key].strip():
+            raise ValueError('Set caller_config to your caller YAML, or manifest for external VCFs')
         if config['pcawg_stage'] not in ('clustering', 'features', 'signatures'):
             raise ValueError('Unknown pcawg_stage')
         if config['sequencing_type'] != 'WGS':
@@ -193,6 +199,9 @@ def main():
             (log_dir/'setup-check.json').write_text(json.dumps(resource_report,indent=2)+'\n')
         if args.workflow == 'callers':
             config['input'] = str(write_resolved_samplesheet(config,ROOT,log_dir/'resolved-samplesheet.tsv'))
+        if args.workflow == 'signatures' and not config.get('manifest'):
+            from signature_inputs import write_auto_manifest
+            config['manifest'] = str(write_auto_manifest(config,ROOT,log_dir))
         (log_dir / 'resolved.yaml').write_text(yaml.safe_dump(config, sort_keys=False))
         hashes = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                   for folder in ('scripts','modules','lib','sv_signatures','config')

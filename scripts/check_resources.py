@@ -30,7 +30,7 @@ def absolute(value, root):
 def normalize_paths(config, mode, root):
     config = deepcopy(config)
     keys = {'callers':('input','reference','outdir','manta_image','exclude_bed','target_bed'),
-            'signatures':('manifest','outdir','python','clustersv_source','pcawg_rscript','pcawg_timing_reference'),
+            'signatures':('manifest','caller_config','outdir','python','clustersv_source','pcawg_rscript','pcawg_timing_reference'),
             'timing':('timing_outdir','timing_python','timing_input_reference'),
             'test':('outdir',)}[mode]
     for key in keys:
@@ -185,7 +185,16 @@ def check_files(config,mode,root):
     else:
         python = config['python']
         require((shutil.which(python) or python) if python == 'python3' else python,'signature Python environment')
-        if require(config['manifest'],'signature manifest'):
+        if not config.get('manifest'):
+            try:
+                from signature_inputs import discover
+                rows,_ = discover(config,root)
+                count = len(rows)
+                for row in rows:
+                    require(row['vcf'],row['cohort']+':'+row['caller']+':'+row['pair_id']+' VCF')
+            except (OSError,ValueError) as exc:
+                issues.append(str(exc))
+        elif require(config['manifest'],'signature manifest'):
             try:
                 header,rows = read_table(absolute(config['manifest'],root),MANIFEST_FIELDS)
                 if tuple(header) != MANIFEST_FIELDS:
@@ -206,6 +215,8 @@ def check_files(config,mode,root):
             except (OSError,ValueError) as exc:
                 issues.append(str(exc))
     return dict(status='passed' if not issues else 'failed',workflow=mode,
-                input_source=str(absolute(config['input'] if mode == 'callers' else config['manifest'],root)),
+                input_source=str(absolute(config['input'] if mode == 'callers' else (config.get('manifest') or config.get('caller_config')),root)),
                 files_checked=len(checked),selected_rows=count,issues=issues,
-                scope='file presence/readability only; BAM/reference and native tool checks run on compute nodes')
+                scope=('file presence/readability and completed caller metadata; no VCF hashing or job submission'
+                       if mode == 'signatures' and not config.get('manifest') else
+                       'file presence/readability only; BAM/reference and native tool checks run on compute nodes'))

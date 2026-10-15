@@ -9,14 +9,8 @@ import re
 FIELDS = ('cohort','pair_id','caller','vcf','source_status','source_sha256')
 CALLERS = {'manta','delly','gridss','svaba','brass'}
 
-def build(source, destination):
-    with Path(source).open(newline='') as handle:
-        reader = csv.DictReader(handle, delimiter='\t')
-        required = set(FIELDS[:-1])
-        absent = required - set(reader.fieldnames or [])
-        if absent:
-            raise ValueError('Missing inventory columns: ' + ','.join(sorted(absent)))
-        rows = list(reader)
+def validate_rows(rows, hash_sources=True):
+    """Shared validation for discovered pipeline outputs and external inventories."""
     if not rows:
         raise ValueError('Empty inventory')
     seen = set()
@@ -31,11 +25,28 @@ def build(source, destination):
         if not row['source_status']:
             raise ValueError('QC status is required; hashing is not biological validation')
         path = Path(row['vcf']).resolve(strict=True)
-        h = hashlib.sha256()
-        with path.open('rb') as data:
-            for chunk in iter(lambda: data.read(1024*1024), b''):
-                h.update(chunk)
-        output.append(dict(zip(FIELDS, key + (str(path),row['source_status'],h.hexdigest()))))
+        if not path.is_file() or not path.stat().st_size:
+            raise ValueError('Missing or empty VCF: ' + str(path))
+        checksum = ''
+        if hash_sources:
+            h = hashlib.sha256()
+            with path.open('rb') as data:
+                for chunk in iter(lambda: data.read(1024*1024), b''):
+                    h.update(chunk)
+            checksum = h.hexdigest()
+        output.append(dict(zip(FIELDS, key + (str(path),row['source_status'],checksum))))
+    return output
+
+
+def build(source, destination):
+    with Path(source).open(newline='') as handle:
+        reader = csv.DictReader(handle, delimiter='\t')
+        required = set(FIELDS[:-1])
+        absent = required - set(reader.fieldnames or [])
+        if absent:
+            raise ValueError('Missing inventory columns: ' + ','.join(sorted(absent)))
+        rows = list(reader)
+    output = validate_rows(rows)
     with Path(destination).open('x', newline='') as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter='\t')
         writer.writeheader(); writer.writerows(output)

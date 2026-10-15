@@ -2,7 +2,8 @@
 method: cosmic_sv32  # Active route. PCAWG/ClusterSV is on hold.
 genome_build: GRCh37
 sequencing_type: WGS
-manifest: manifests/sv_manifest.tsv
+caller_config: config/private-cohort.yaml  # Read completed outputs from this caller run.
+manifest: null  # Automatic from caller_config; set a hashed manifest for external VCFs.
 outdir: ''  # Default: results/sv_signatures_corrected
 python: sv_signatures/.venv/bin/python
 groups: all  # Or melanoma:manta,pnet:manta

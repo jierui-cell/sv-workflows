@@ -122,7 +122,8 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 
 | Parameter | Default / meaning |
 | --- | --- |
-| `manifest` | `manifests/sv_manifest.tsv`; generated six-column hashed VCF manifest |
+| `caller_config` | `config/private-cohort.yaml`; read completed VCFs from this caller configuration automatically |
+| `manifest` | `null`; automatically build a hashed manifest from caller results. Set a manifest path to import external VCFs instead |
 | `genome_build` | `GRCh37`; active COSMIC SV32 route uses this assembly |
 | `sequencing_type` | `WGS`; genome-wide signature routes use WGS callsets |
 | `python` | `sv_signatures/.venv/bin/python`; separate pinned environment |
@@ -136,6 +137,8 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | `account`, `partition` | `null`; signature scheduler keys use these names |
 | `group_cpus`, `group_memory_gb`, `group_time` | `4`, `32`, `4h` |
 | `max_parallel_groups` | `4` simultaneous cohort/caller groups |
+
+`caller_config` supplies the caller output directory, cohort label, selected callers and samples. Point it to a caller run's saved `resolved.yaml` when that run used command-line overrides. Generated manifests and source-selection records are saved in the signature run's logs. [Automatic inputs and external VCFs](docs/signatures.md#use-your-caller-results).
 
 PCAWG/ClusterSV signature analysis is on hold, including clustering, feature construction and NMF. Its settings remain in the defaults for future work, but selecting `method=pcawg_clustersv` stops before task submission. COSMIC settings and caller workflows are unchanged. See [status](docs/signatures.md#pcawg-status).
 

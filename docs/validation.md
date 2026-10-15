@@ -18,6 +18,8 @@ python scripts/test_installation.py
 
 Synthetic tests cover YAML/schema validation, paired roles, option defaults, reference/index checks, BED regions, VCF orientation/mate collapse, filter adapters, missing BRASS statistics and benchmark recording.
 
+Signature-input tests exercise automatic discovery for all five callers, native/compact outputs, caller/sample selection, completion records, hashed manifest creation, unchanged-input cache stability and the launcher handoff. File-check and preview modes submit no analysis tasks; manual external manifests remain supported.
+
 ## Entry-Point Tests
 
 On a workstation or allocated node:
