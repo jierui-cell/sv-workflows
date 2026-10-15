@@ -52,9 +52,11 @@ def paths_for(root, caller):
     for pair_dir in sorted((root / caller).glob('*')):
         if not pair_dir.is_dir():
             continue
-        benchmark = pair_dir / ('benchmark.json' if caller == 'manta' else 'output/benchmark.json')
-        if benchmark.is_file():
-            yield pair_dir.name, benchmark
+        # Standard layout, plus historical Manta and compact-publish outputs.
+        # Yield both if present so summarize() reports duplicate runs.
+        for benchmark in (pair_dir / 'output/benchmark.json', pair_dir / 'benchmark.json'):
+            if benchmark.is_file():
+                yield pair_dir.name, benchmark
 
 
 def write_tsv(path, fields, rows):

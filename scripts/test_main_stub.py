@@ -172,6 +172,10 @@ def main():
         count = base/'results/preflight/SYNTHETIC'/(role+'.interval_read_count.txt')
         if int(count.read_text().strip()) != 1:
             raise RuntimeError('Indexed query on numbered chromosome did not retrieve the synthetic read')
+    if args.manta_image:
+        benchmark = base/'results/manta/SYNTHETIC/output/benchmark.json'
+        if json.loads(benchmark.read_text()).get('status') != 'stub_not_benchmarked':
+            raise RuntimeError('Manta stub did not publish its benchmark at the standard path')
     summary = {'status':'passed','callers':callers,'cached_tasks':len(tasks),
                'scope':'real synthetic BAM preflight, task wiring and resume; no caller inference',
                'manta_container_configuration_tested':bool(args.manta_image),

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from summarize_benchmarks import summarize
+from summarize_benchmarks import CALLERS, paths_for, summarize
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,7 @@ class BenchmarkReportingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp)
             meta = base / 'meta.json'
-            report = base / 'benchmark.json'
+            report = base / 'output/benchmark.json'
             meta.write_text(json.dumps(dict(caller='test', pair_id='PAIR1', dataset_id='test',
                                             reference='ref.fa', allocated_cpus=1,
                                             requested_memory_gb=1, settings={})))
@@ -40,7 +40,7 @@ class BenchmarkReportingTests(unittest.TestCase):
             base = Path(temp)
             root, out = base / 'calls', base / 'summary'
             for caller in ('manta', 'delly'):
-                p = root / caller / 'PAIR1' / ('' if caller == 'manta' else 'output')
+                p = root / caller / 'PAIR1/output'
                 p.mkdir(parents=True)
                 (p / 'benchmark.json').write_text(json.dumps(dict(
                     schema='sv-caller-benchmark/v1', caller=caller, pair_id='PAIR1',
@@ -65,6 +65,33 @@ class BenchmarkReportingTests(unittest.TestCase):
             self.assertEqual(strict['status'], 'review_required')
             duplicate = summarize([root, root], out, ('manta', 'delly'))
             self.assertEqual(duplicate['status'], 'review_required')
+
+            # Do not silently select one of two benchmark files for a pair.
+            current = root / 'manta/PAIR1/output/benchmark.json'
+            (current.parent.parent / 'benchmark.json').write_text(current.read_text())
+            conflicting = summarize(root, out, ('manta', 'delly'))
+            self.assertEqual(conflicting['status'], 'review_required')
+            self.assertTrue(any('Duplicate benchmark' in issue for issue in conflicting['issues']))
+
+    def test_discovers_standard_historical_and_compact_benchmark_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for caller in CALLERS:
+                for pair, relative in (('CURRENT', 'output/benchmark.json'),
+                                       ('LEGACY_OR_COMPACT', 'benchmark.json')):
+                    path = root / caller / pair / relative
+                    path.parent.mkdir(parents=True)
+                    path.write_text('{}')
+                found = dict(paths_for(root, caller))
+                self.assertEqual(set(found), {'CURRENT', 'LEGACY_OR_COMPACT'})
+                self.assertEqual(found['CURRENT'], root / caller / 'CURRENT/output/benchmark.json')
+                self.assertEqual(found['LEGACY_OR_COMPACT'], root / caller / 'LEGACY_OR_COMPACT/benchmark.json')
+
+    def test_manta_declares_and_writes_the_standard_benchmark_path(self):
+        process = (ROOT / 'main.nf').read_text().split('process MANTA {', 1)[1].split('\nworkflow {', 1)[0]
+        self.assertIn("path 'output/benchmark.json'", process)
+        self.assertIn("python3 '${benchmarker}' output/benchmark.json benchmark.meta.json", process)
+        self.assertIn("mkdir -p output\n    echo '{\"status\":\"stub_not_benchmarked\"}' > output/benchmark.json", process)
 
 
 if __name__ == '__main__':

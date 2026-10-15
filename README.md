@@ -201,7 +201,7 @@ Under the caller `outdir`:
 | SvABA | `svaba/PAIR/output/PAIR.svaba.somatic.sv.vcf` |
 | GRIDSS | `gridss/PAIR/output/somatic/somatic.high_confidence.vcf.gz` |
 | BRASS | `brass/PAIR/output/callset/calls/*.annot.vcf.gz` |
-| Runtime / memory | Manta: `manta/PAIR/benchmark.json`; others: `CALLER/PAIR/output/benchmark.json` |
+| Runtime / memory | `CALLER/PAIR/output/benchmark.json` |
 
 Signature results: `SIGNATURE_OUTDIR/COHORT/CALLER/group_output/SV32.matrix.tsv` and `SV32.exposures.tsv`. Settings and logs: `logs/WORKFLOW-TIMESTAMP/`. [Performance exports](docs/performance.md).
 

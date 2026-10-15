@@ -2,6 +2,8 @@
 
 All five callers use `measure_benchmark.py` with the same task boundary: after preflight, from caller preparation/configuration through filtering and final QC. `elapsed_seconds` excludes queue delay and shared reference preparation.
 
+Benchmarks are saved at `CALLER/PAIR/output/benchmark.json`. The exporter also reads historical Manta and compact-layout reports at `CALLER/PAIR/benchmark.json`.
+
 ## What Is Measured
 
 On a readable, verified Slurm job cgroup, the recorder samples resident memory excluding unmapped filesystem cache. Otherwise it records command-session process-tree RSS and a distinct `memory_method_id`. Process PSS is included where available. Sampling is once per second.

@@ -97,7 +97,9 @@ def discover(config, root):
                     raise ValueError('benchmark settings must be a JSON object')
                 if settings.get('genome_build', caller['genome_build']) != config['genome_build'] or settings.get('sequencing_type', caller['sequencing_type']) != config['sequencing_type']:
                     raise ValueError('benchmark build/assay differs from signature settings')
-                task = benchmark_path.parent
+                # Manta keeps its native VCF tree at the pair root; its benchmark
+                # is now in output/, with historical root-level records supported.
+                task = folder if name == 'manta' else benchmark_path.parent
                 patterns = {
                     'manta': ('manta/results/variants/somaticSV.vcf.gz', 'somaticSV.vcf.gz'),
                     'delly': ('somaticSV.vcf.gz',),

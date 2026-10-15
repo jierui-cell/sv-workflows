@@ -75,7 +75,7 @@ process MANTA {
     path 'manta.*.ini'
     path 'manta.overrides.json'
     path 'manta.time.txt', optional: true
-    path 'benchmark.json'
+    path 'output/benchmark.json'
     path 'regions/*', optional: true
     script:
     def tumorDir = meta.tumor_dir
@@ -116,7 +116,7 @@ process MANTA {
     bcftools view -Ov -o /dev/null manta/results/variants/somaticSV.vcf.gz
     bcftools stats manta/results/variants/somaticSV.vcf.gz > somaticSV.stats.txt
     MANTA_TASK
-    python3 '${benchmarker}' benchmark.json benchmark.meta.json -- bash manta-task.sh
+    python3 '${benchmarker}' output/benchmark.json benchmark.meta.json -- bash manta-task.sh
     """
     stub:
     def options = groovy.json.JsonOutput.toJson(params.manta_options)
@@ -135,7 +135,8 @@ process MANTA {
       --config manta.effective.ini --runDir manta ${assayFlags} ${regionFlags}
     sha256sum manta.effective.ini > artifacts.sha256
     echo 'STUB: configuration tested; no SV calls produced' > somaticSV.stats.txt
-    echo '{"status":"stub_not_benchmarked"}' > benchmark.json
+    mkdir -p output
+    echo '{"status":"stub_not_benchmarked"}' > output/benchmark.json
     """
 }
 

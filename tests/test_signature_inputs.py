@@ -48,7 +48,7 @@ class SignatureInputTests(unittest.TestCase):
     def save_caller(self):
         self.write('config/private-cohort.yaml', workflow.yaml.safe_dump(self.caller))
 
-    def complete(self, caller, pair='PAIR_001', compact=False):
+    def complete(self, caller, pair='PAIR_001', compact=False, legacy_manta=False):
         base = Path(self.caller['outdir']) / caller / pair
         task = base if caller == 'manta' or compact else base / 'output'
         vcf = {
@@ -72,7 +72,8 @@ class SignatureInputTests(unittest.TestCase):
                      'dataset_id': self.caller['dataset_id'], 'caller': caller, 'pair_id': pair,
                      'reference': str(reference), 'output_class': 'somatic',
                      'settings': {'genome_build': 'GRCh37', 'sequencing_type': 'WGS'}}
-        self.write(task / 'benchmark.json', json.dumps(benchmark))
+        benchmark_dir = task / 'output' if caller == 'manta' and not compact and not legacy_manta else task
+        self.write(benchmark_dir / 'benchmark.json', json.dumps(benchmark))
         if caller == 'brass':
             self.write(task / 'callset/technical-qc.json', '{"status":"technical_qc_passed"}')
         elif caller != 'manta':
@@ -102,6 +103,13 @@ class SignatureInputTests(unittest.TestCase):
     def test_compact_publishing_layouts(self):
         self.complete_cohort(compact=True)
         self.assertEqual(len(discover(self.config, self.root)[0]), 10)
+
+    def test_historical_manta_benchmarks_still_select_native_vcfs(self):
+        self.caller.update(callers='manta', pair_ids='PAIR_001')
+        self.save_caller()
+        path = self.complete('manta', legacy_manta=True)
+        rows, _ = discover(self.config, self.root)
+        self.assertEqual([row['vcf'] for row in rows], [str(path)])
 
     def test_group_and_pair_selections_do_not_require_unselected_outputs(self):
         self.complete('delly', 'PAIR_002')
@@ -144,7 +152,7 @@ class SignatureInputTests(unittest.TestCase):
         self.caller.update(callers='manta', pair_ids='PAIR_001')
         self.save_caller()
         vcf = self.complete('manta')
-        benchmark = vcf.parents[3] / 'benchmark.json'
+        benchmark = vcf.parents[3] / 'output/benchmark.json'
         original = benchmark.read_text()
         for overrides in ({'exit_code': 1}, {'exit_code': None}, {'exit_code': False},
                           {'schema': 'stub_not_benchmarked'}, {'dataset_id': 'another'},
