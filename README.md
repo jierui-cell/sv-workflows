@@ -129,7 +129,13 @@ Use `--set` for one-off overrides, such as `--set delly.options.map_qual=2`. For
 
 ### 4. Optional: restart an interrupted run
 
-Get the original Nextflow session ID with `nextflow log`, then add it to the original submission:
+List previous runs using your configured modules:
+
+~~~bash
+python scripts/hpc_environment.py -- nextflow log
+~~~
+
+Copy the original run’s `SESSION ID`, then add it to the original submission:
 
 ~~~bash
 sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \

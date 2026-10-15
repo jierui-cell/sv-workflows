@@ -164,7 +164,9 @@ def main():
         raise RuntimeError('Expected preflight and every requested caller stub to resume from cache: '+repr(tasks))
     if cfg['modules']:
         wrappers = list((base/'work').rglob('.command.run'))
-        if not wrappers or any(any(name not in path.read_text() for name in cfg['modules']) for path in wrappers):
+        # Nextflow renders name/version as: nxf_module_load name version.
+        expected = ['nxf_module_load '+' '.join(name.rsplit('/',1)) for name in cfg['modules']]
+        if not wrappers or any(any(command not in path.read_text() for command in expected) for path in wrappers):
             raise RuntimeError('A task wrapper is missing the configured modules')
     for role in ('tumor','normal'):
         count = base/'results/preflight/SYNTHETIC'/(role+'.interval_read_count.txt')

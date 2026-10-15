@@ -35,6 +35,7 @@ jobs:
             fi
           }
           export -f module
+          python scripts/workflow.py test --profile test --config tests/module-fixture.yaml
           python scripts/test_main_stub.py --config tests/module-fixture.yaml --out results/ci-main-stub
       - run: python scripts/test_main_stub.py --out results/ci-region-stub --with-exclusions
       # PCAWG/ClusterSV numerical workflows are on hold; source/tests are retained.
