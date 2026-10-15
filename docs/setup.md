@@ -97,7 +97,7 @@ Our [adapter](../scripts/adapt_brass_resources.py) matches the archives to the s
 
 The small [GRCh37d5 dictionary](../config/brass-GRCh37d5.dict) is included as public reference metadata: chromosome names, lengths and sequence MD5s derived from the [1000 Genomes hs37d5 reference](https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/). Its header records the source URL and compressed FASTA SHA-256. You do **not** need to download another human FASTA or find a separate dictionary yourself.
 
-This route prepares **chr-prefixed GRCh37** resources (`chr1`–`chr22`, `chrX`, `chrY` for BRASS calling). It checks sequence identity rather than assuming all files labelled GRCh37 are interchangeable. GRCh38 resources need a separate compatible preparation route.
+This route prepares **chr-prefixed GRCh37** resources (`chr1`–`chr22`, `chrX`, `chrY` for BRASS calling). For other reference builds, revise [setup_brass.py](../scripts/setup_brass.py) and its helpers ([bundle preparation](../scripts/prepare_brass_bundle.py), [resource adaptation](../scripts/adapt_brass_resources.py) and [native validation](../scripts/validate_brass_cache.pl)) to use build-matched archives, sequence dictionaries and chromosome names.
 
 ### Reuse and restart
 
