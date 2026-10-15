@@ -23,10 +23,7 @@ The launcher checks completion records and selects GRCh37 WGS callsets. Use `gro
 
 ## Install Once
 
-~~~bash
-python3.11 -m venv sv_signatures/.venv
-sv_signatures/.venv/bin/python -m pip install -r sv_signatures/requirements.lock.txt
-~~~
+Create the pinned Python environment using the [README setup commands](../README.md#sv-signature-analysis). The workflow selects it automatically; no separate activation is needed.
 
 ## Launch COSMIC SV32
 

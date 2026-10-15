@@ -164,11 +164,20 @@ Submit using the launch command above with the capture YAML. Manta receives `--e
 
 Signatures automatically read the completed VCFs from the run configured in `config/private-cohort.yaml`. GRIDSS contributes its high-confidence somatic VCF.
 
+Create the signature environment **once**, from the repository root. The workflow uses it automatically:
+
+~~~bash
+python3.11 -m venv sv_signatures/.venv
+sv_signatures/.venv/bin/python -m pip install -r sv_signatures/requirements.lock.txt
+~~~
+
+Copy the signature settings:
+
 ~~~bash
 cp examples/signatures.yaml config/private-signatures.yaml
 ~~~
 
-Set the signature account/partition, complete the one-time [signature environment setup](docs/signatures.md#install-once), then submit:
+Set your account/partition in `config/private-signatures.yaml`, then submit:
 
 ~~~bash
 sbatch --account=YOUR_ACCOUNT --partition=YOUR_PARTITION \
