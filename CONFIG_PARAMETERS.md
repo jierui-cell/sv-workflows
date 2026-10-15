@@ -36,7 +36,8 @@ This example is a **preview only**: `--dry-run` prints the final configuration a
 | `container_engine` | `apptainer`, or `singularity` |
 | `slurm_account`, `slurm_partition` | `null`; set site values when required |
 | `scheduler_options` | Empty; additional site-owned scheduler flags |
-| `modules_samtools`, `modules_bcftools`, `modules_calling` | `null`; optionally supply site module names, colon-separated for multiple modules |
+| `modules` | `[]`; site module list loaded before Nextflow and in every compute task, e.g. `[java/20.0.1, samtools/1.20, bcftools/1.20]` |
+| `modules_samtools`, `modules_bcftools`, `modules_calling` | `null`; legacy task-specific additions, colon-separated; use `modules` for shared tools |
 | `max_parallel_callers` | `3` per caller process, not a global total |
 | `max_parallel_preflight` | `3` simultaneous input checks |
 | `compact_publish` | `false`; preserve native output hierarchy |
@@ -123,6 +124,7 @@ Use **a separate YAML**, based on [config/signatures.yaml](config/signatures.yam
 | Parameter | Default / meaning |
 | --- | --- |
 | `caller_config` | `config/private-cohort.yaml`; read completed VCFs from this caller configuration automatically |
+| `modules` | `null`; inherit the caller configuration’s modules. Set a list to override, or `[]` for installed tools |
 | `manifest` | `null`; automatically build a hashed manifest from caller results. Set a manifest path to import external VCFs instead |
 | `genome_build` | `GRCh37`; active COSMIC SV32 route uses this assembly |
 | `sequencing_type` | `WGS`; genome-wide signature routes use WGS callsets |

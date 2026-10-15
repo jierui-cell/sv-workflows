@@ -16,7 +16,7 @@ process VALIDATE_PAIR {
     memory '2 GB'
     time '30m'
     maxForks (params.max_parallel_preflight as int)
-    module { params.modules_samtools ?: '' }
+    module { ((params.modules ?: []) + (params.modules_samtools ?: '').tokenize(':')).unique().join(':') }
     publishDir "${params.outdir}/preflight/${meta.id}", mode: 'copy',
         saveAs: { name -> (name.endsWith('.bam') || name.endsWith('.bai')) ? null : name }
     input:
@@ -54,7 +54,7 @@ process MANTA {
     time { params.manta_time }
     maxForks (params.max_parallel_callers as int)
     scratch false
-    module { params.modules_bcftools ?: '' }
+    module { ((params.modules ?: []) + (params.modules_bcftools ?: '').tokenize(':')).unique().join(':') }
     publishDir "${params.outdir}/manta/${meta.id}", mode: 'copy',
         saveAs: { name -> params.compact_publish ? name.tokenize('/').last() : name }
     input:

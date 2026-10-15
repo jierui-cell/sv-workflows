@@ -6,13 +6,25 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import yaml
+from workflow import resolve_config
+from hpc_environment import load_modules
 
 ROOT = Path(__file__).resolve().parents[1]
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--engine', choices=('apptainer','singularity'), default='apptainer')
+    ap.add_argument('--engine', choices=('apptainer','singularity'))
+    ap.add_argument('--config', type=Path, action='append', default=[])
     ap.add_argument('--tools', default='manta,delly,svaba,gridss,brass')
     args = ap.parse_args()
+    default_config = ROOT/'config/private-cohort.yaml'
+    paths = args.config or ([default_config] if default_config.is_file() else [])
+    try:
+        config = resolve_config('callers',paths,root=ROOT)
+        load_modules(config.get('modules'))
+    except (ValueError,OSError,yaml.YAMLError) as exc:
+        ap.error(str(exc))
+    args.engine = args.engine or config['container_engine']
     rows = list(csv.DictReader((ROOT/'config/containers.tsv').open(),delimiter='\t'))
     wanted = args.tools.split(',')
     if set(wanted)-{r['tool'] for r in rows}: ap.error('Unknown tool')

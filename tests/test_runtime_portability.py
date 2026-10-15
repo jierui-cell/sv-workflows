@@ -51,8 +51,9 @@ class RuntimePortabilityTests(unittest.TestCase):
     def test_null_module_directives_are_safe(self):
         for path in [ROOT/'main.nf',ROOT/'modules/call_sv.nf',ROOT/'modules/integrated_caller.nf']:
             for line in path.read_text().splitlines():
-                if 'module { params.modules_' in line:
+                if line.strip().startswith('module {'):
                     self.assertIn("?: ''",line,str(path))
+                    self.assertIn('params.modules ?: []',line,str(path))
 
     def test_reference_dictionary_rejects_other_assembly(self):
         names = [str(i) for i in range(1,23)]+['X']

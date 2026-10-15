@@ -1,7 +1,5 @@
 # Customize privately. Names are examples, not required modules/accounts.
 slurm_account: YOUR_ACCOUNT
 slurm_partition: YOUR_PARTITION
-modules_samtools: samtools/1.20
-modules_bcftools: bcftools/1.20
-modules_calling: samtools/1.20:bcftools/1.20
+modules: [java/20.0.1, samtools/1.20, bcftools/1.20]
 container_engine: singularity

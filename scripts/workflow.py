@@ -14,6 +14,7 @@ import subprocess
 import sys
 import yaml
 from check_resources import check_files, normalize_paths, write_resolved_samplesheet
+from hpc_environment import load_modules, module_names
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULTS = {'callers': 'defaults.yaml', 'signatures': 'signatures.yaml',
@@ -69,7 +70,27 @@ def override(config, text):
         raise ValueError(f'Unknown configuration key: {key}')
     node[parts[-1]] = yaml.load(raw, Loader=UniqueLoader)
 
+def resolve_config(mode, paths=(), overrides=(), root=None):
+    root = ROOT if root is None else Path(root)
+    config = read_yaml(root/'config'/DEFAULTS[mode])
+    for path in paths:
+        config = merge(config,read_yaml(path))
+    for item in overrides:
+        override(config,item)
+    return config
+
+def effective_modules(config,root):
+    value = config.get('modules')
+    source = config.get('caller_config')
+    if value is None and source:
+        path = Path(source)
+        if not path.is_absolute(): path = Path(root)/path
+        if path.is_file():
+            value = resolve_config('callers',[path],root=root).get('modules')
+    return module_names(value)
+
 def validate(config, mode):
+    module_names(config.get('modules'))
     for key in ('max_parallel_callers', 'max_parallel_preflight', 'max_parallel_groups',
                 'group_cpus', 'group_memory_gb'):
         if key in config and (type(config[key]) is not int or config[key] < 1):
@@ -147,12 +168,9 @@ def main():
     ap.add_argument('--allow-local', action='store_true', help='Confirm a workstation/allocated node, never a login node')
     args = ap.parse_args()
     try:
-        config = read_yaml(ROOT / 'config' / DEFAULTS[args.workflow])
-        for path in args.config:
-            config = merge(config, read_yaml(path))
-        for item in args.set:
-            override(config, item)
+        config = resolve_config(args.workflow,args.config,args.set)
         validate(config, args.workflow)
+        config['modules'] = effective_modules(config,ROOT)
         config = normalize_paths(config,args.workflow,ROOT)
         if args.check_files:
             report = check_files(config,args.workflow,ROOT)
@@ -184,6 +202,12 @@ def main():
             print(yaml.safe_dump(config, sort_keys=False))
             print(shlex.join(command))
             return
+        try:
+            environment_report = load_modules(config['modules'])
+        except ValueError as exc:
+            log_dir.mkdir(parents=True)
+            (log_dir/'status.json').write_text(json.dumps({'stage':'module_setup','error':str(exc)},indent=2)+'\n')
+            raise
         resource_report = None
         if args.workflow in ('callers','signatures'):
             resource_report = check_files(config,args.workflow,ROOT)
@@ -196,6 +220,7 @@ def main():
             raise ValueError('Nextflow is not on PATH. Install Nextflow 25.10.7 or load its module; '
                              'see docs/setup.md#launcher-and-compute-tools. Java 17+ is also required.')
         log_dir.mkdir(parents=True)
+        (log_dir/'environment.json').write_text(json.dumps(environment_report,indent=2)+'\n')
         if resource_report:
             (log_dir/'setup-check.json').write_text(json.dumps(resource_report,indent=2)+'\n')
         if args.workflow == 'callers':

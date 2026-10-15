@@ -1,5 +1,6 @@
 # Use scripts/workflow.py signatures with a private overlay from examples/signatures.yaml.
 method: cosmic_sv32  # Active route. PCAWG/ClusterSV is on hold.
+modules: null  # Inherit from caller_config; [] uses installed tools.
 genome_build: GRCh37
 sequencing_type: WGS
 caller_config: config/private-cohort.yaml  # Read completed outputs from this caller run.

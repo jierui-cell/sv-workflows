@@ -13,7 +13,8 @@ slurm_account: YOUR_ACCOUNT
 slurm_partition: YOUR_PARTITION
 max_parallel_callers: 8
 # Images and BRASS bundle inherit the standard paths from defaults.yaml.
-# Optional modules; otherwise preload tools before submission.
-modules_samtools: null
-modules_bcftools: null
-modules_calling: null
+# Set these to your HPC's module names, or [] for installed tools.
+modules:
+  - java/20.0.1
+  - samtools/1.20
+  - bcftools/1.20

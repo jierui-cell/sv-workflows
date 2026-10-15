@@ -1,155 +1,83 @@
 # Installation and Resources
 
-Prepare the tools and shared resources once, then reuse them across cohorts.
+Follow the [README setup](../README.md#requirements) once; reuse the tools and resources across cohorts.
 
 ## Standard Locations
 
-Use `inputs/samplesheet.tsv` for pair metadata, `inputs/bams/` for BAMs/indexes, `resources/reference/reference.fa` for the alignment reference and `resources/brass/bundle/` for prepared BRASS resources. Images go in `containers/images/`. These paths are already in the YAML defaults; relative paths are anchored to the checkout root. [Folder layout](../README.md#standard-folder-layout).
-
-Existing BAM/reference locations can be used through absolute YAML/TSV overrides or suitable symlinks. Keep linked references with their original index files as well as the configured names; the checker reports missing source indexes where an adapter follows the FASTA link.
+Inputs go in `inputs/`, the shared alignment FASTA in `resources/reference/`, caller images in `containers/images/` and BRASS resources in `resources/brass/bundle/`. Paths can be changed in your cohort YAML.
 
 ## Launcher and Compute Tools
 
-Use Linux, Python 3.11, Java 17+ and Nextflow 25.10.7. Set up the Python environment:
+Put your site modules in `config/private-cohort.yaml`:
 
-~~~bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+~~~yaml
+modules: [java/20.0.1, samtools/1.20, bcftools/1.20]
+container_engine: singularity
 ~~~
 
-Java, Nextflow and samtools are separate command-line tools. On an HPC, load the available modules; for example:
+Use module names from your HPC, adding Python or container-runtime modules where needed; `modules: []` uses installed tools. The launcher loads this list before Nextflow starts, and Nextflow loads it inside compute tasks. Slurm submissions select `.venv` automatically.
+
+Install Nextflow in `.venv/bin/nextflow` using the [README command](../README.md#1-install-once), then initialize it with Java from your YAML:
 
 ~~~bash
-module load java/20.0.1 samtools/1.20 bcftools/1.20
+python scripts/hpc_environment.py -- .venv/bin/nextflow -version
 ~~~
 
-Module names vary by site. Use `module avail java samtools bcftools nextflow` to see yours. Activate the Python environment and load your modules in each new session before running tests or submitting jobs.
-
-If Nextflow is not supplied by a module, install the pinned [official launcher](https://github.com/nextflow-io/nextflow/releases/tag/v25.10.7) inside the Python environment, from the repository root:
-
-~~~bash
-curl -fL --retry 3 https://github.com/nextflow-io/nextflow/releases/download/v25.10.7/nextflow \
-  -o .venv/bin/nextflow
-chmod +x .venv/bin/nextflow
-export NXF_VER=25.10.7
-nextflow -version
-~~~
-
-Activating `.venv` makes this launcher available on PATH. Its first start downloads the Nextflow runtime, so initialize it with internet access. [Nextflow installation guide](https://www.nextflow.io/docs/latest/install.html).
-
-Compute tasks use host `python3`, `samtools`, `bcftools` and Apptainer/Singularity. Reference indexing also uses `bwa`. BRASS uses `jq`, `patch` and standard Linux utilities. When supplying Manta region BEDs, also provide `bgzip` and `tabix`.
+This first start needs internet access. The same helper runs other setup commands with your configured modules.
 
 ## Caller Containers
 
 ~~~bash
-python scripts/fetch_containers.py --engine apptainer --tools manta,delly,gridss,svaba,brass
+python scripts/fetch_containers.py
 ~~~
 
-Use `--engine singularity` if appropriate. Images are pinned by OCI digest in `config/containers.tsv`; the downloader records a SIF SHA-256 receipt. It reuses matching downloads. Its output filenames already match `config/defaults.yaml`, so no image-path edits are needed.
+The downloader reads `config/private-cohort.yaml`, loads its modules and uses its container engine. Add `--tools manta,delly` to select images or `--config` for another YAML. Image digests are pinned in [config/containers.tsv](../config/containers.tsv).
 
 ## Alignment Reference
 
-Place the FASTA used for alignment at `resources/reference/reference.fa`, plus its indexes:
+Place the alignment FASTA and matching indexes at:
 
-| Resource | Used by |
+| Files | Used by |
 | --- | --- |
-| `resources/reference/reference.fa` + `reference.fa.fai` | All callers |
-| `reference.fa.amb`, `.ann`, `.bwt`, `.pac`, `.sa` alongside the FASTA | SvABA, GRIDSS |
-| `resources/reference/reference.dict` | GRIDSS and BRASS bundle preparation |
+| `resources/reference/reference.fa` and `.fa.fai` | All callers |
+| `reference.fa.amb`, `.ann`, `.bwt`, `.pac`, `.sa` | SvABA and GRIDSS |
+| `resources/reference/reference.dict` | GRIDSS and BRASS preparation |
 
-Reuse existing indexes, or build them on a compute node:
+Existing files can be linked here. To build indexes on a compute node, include BWA in your modules and run:
 
 ~~~bash
-samtools faidx resources/reference/reference.fa
-bwa index resources/reference/reference.fa
-samtools dict resources/reference/reference.fa > resources/reference/reference.dict
+python scripts/hpc_environment.py -- samtools faidx resources/reference/reference.fa
+python scripts/hpc_environment.py -- bwa index resources/reference/reference.fa
+python scripts/hpc_environment.py -- samtools dict resources/reference/reference.fa > resources/reference/reference.dict
 ~~~
-
-Automatic preflight checks BAM/reference dictionaries, the declared build, sample names, sortedness, quickcheck and indexed access.
 
 ## BRASS Bundle
 
-**BRASS uses the same human FASTA as every other caller:** `reference` in your YAML. The additional `brass.bundle` folder holds annotations and filtering resources, not a different human assembly.
-
-### One-command setup
-
-Use the BRASS image installed in [Caller Containers](#caller-containers) and the shared FASTA, `.fai` and `.dict` prepared above. Run from the checkout root in a compute allocation with internet access, using Apptainer (or Singularity), `curl`, `patch` and the launcher's Python environment:
+BRASS uses the shared human FASTA plus additional masks and annotations. Prepare them on a compute node:
 
 ~~~bash
 python scripts/setup_brass.py
 ~~~
 
-With no explicit choice, setup uses the installed runtime: Apptainer first, otherwise Singularity. To select Singularity explicitly:
+It reads the cohort YAML, loads its modules and prepares `resources/brass/bundle/`. Use `--config` for another YAML or `--engine singularity` to select that runtime explicitly.
 
-~~~bash
-python scripts/setup_brass.py --engine singularity
-~~~
-
-If your cohort YAML changes resource paths or the container engine, use it here too:
-
-~~~bash
-python scripts/setup_brass.py --config config/private-cohort.yaml
-~~~
-
-Runtime selection follows `--engine` → `--set container_engine=...` → explicit YAML `container_engine` → automatic detection. A requested runtime is never silently replaced. To use Singularity for both setup and caller jobs, put `container_engine: singularity` in your private YAML and pass that YAML to both commands. The setup command does not change YAML defaults or your cohort configuration.
-
-The command performs these steps automatically:
-
-1. Checks the shared reference's sequence names, lengths and MD5 identities against the versioned GRCh37d5 dictionary, before downloading.
-2. Downloads the two Sanger resource archives (~3.1 GB) into `resources/brass/downloads/`, verifies their pinned MD5 and SHA-256 checksums and resumes interrupted transfers.
-3. Extracts only the BRASS and VAGrENT files used by this workflow into `resources/brass/source/`. It leaves unrelated ASCAT files and the optional normal panel unused.
-4. Adapts chromosome labels, rebuilds resource indexes and checks the resources with BRASS/VAGrENT's native readers. **No coordinates are lifted over, BAMs realigned or human genomes replaced.**
-5. Publishes the validated folder at `brass.bundle` (default `resources/brass/bundle/`) and records the outcome in `logs/brass-setup-TIMESTAMP/status.json` and `setup.log`.
-
-The download URLs and checksums are versioned in [config/brass-resources.tsv](../config/brass-resources.tsv). These are Sanger's [published reference archives](https://github.com/cancerit/dockstore-cgpwgs/wiki/Reference-archives):
-
-| Archive | Resources used by BRASS |
+| Sanger archive (~3.1 GB total) | Contents |
 | --- | --- |
-| [CNV_SV_ref_GRCh37d5_brass6+.tar.gz](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/CNV_SV_ref_GRCh37d5_brass6+.tar.gz) | High-depth masks, GC windows, centromere/telomere and cytoband annotations, viral/bacterial sequences |
-| [VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz) | Transcript annotation cache and transcript sequences |
+| [CNV_SV_ref_GRCh37d5_brass6+.tar.gz](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/CNV_SV_ref_GRCh37d5_brass6+.tar.gz) | Depth/GC masks, chromosome annotations and microbial/viral sequences |
+| [VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz) | Transcript annotations and sequences |
 
 ### Why preparation is needed
 
-BRASS's [reference guide](https://github.com/cancerit/BRASS/wiki) and [v6.3.4 input specification](https://github.com/cancerit/BRASS/blob/v6.3.4/perl/bin/brass.pl#L363-L380) list these resources separately from the human FASTA. Sanger supplies them in the two archives above and describes [building bundles for different naming conventions](https://github.com/cancerit/dockstore-cgpwgs/wiki/Reference-archives#generating-alternative-reference-sets).
+The [BRASS reference guide](https://github.com/cancerit/BRASS/wiki) and [v6.3.4 inputs](https://github.com/cancerit/BRASS/blob/v6.3.4/perl/bin/brass.pl#L363-L380) specify these resources separately from the human FASTA. Sanger describes [bundles for different naming conventions](https://github.com/cancerit/dockstore-cgpwgs/wiki/Reference-archives#generating-alternative-reference-sets).
 
-Our [adapter](../scripts/adapt_brass_resources.py) matches the archives to the shared reference: it verifies sequence identities, converts chromosome labels such as `1` to `chr1`, and rebuilds the resource indexes. This label adaptation is part of this workflow; genomic coordinates stay unchanged.
+Our adapter verifies sequence identities against the included GRCh37d5 dictionary, changes labels such as `1` to `chr1` and rebuilds indexes. Coordinates stay unchanged. Other builds require changes to [setup](../scripts/setup_brass.py), [preparation](../scripts/prepare_brass_bundle.py), [adaptation](../scripts/adapt_brass_resources.py) and [validation](../scripts/validate_brass_cache.pl), with build-matched resources.
 
-The small [GRCh37d5 dictionary](../config/brass-GRCh37d5.dict) is included as public reference metadata: chromosome names, lengths and sequence MD5s derived from the [1000 Genomes hs37d5 reference](https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/). Its header records the source URL and compressed FASTA SHA-256. You do **not** need to download another human FASTA or find a separate dictionary yourself.
-
-This route prepares **chr-prefixed GRCh37** resources (`chr1`–`chr22`, `chrX`, `chrY` for BRASS calling). For other reference builds, revise [setup_brass.py](../scripts/setup_brass.py) and its helpers ([bundle preparation](../scripts/prepare_brass_bundle.py), [resource adaptation](../scripts/adapt_brass_resources.py) and [native validation](../scripts/validate_brass_cache.pl)) to use build-matched archives, sequence dictionaries and chromosome names.
-
-### Reuse and restart
-
-Run the same setup command again to verify and reuse a completed bundle, without downloading or rebuilding it. Shared resources can be reused across cohorts with the same reference and pinned BRASS image. Keep `resources/brass/source/`: the bundle links unchanged transcript/microbial files there. After successful setup, the cached archives in `resources/brass/downloads/` are optional to retain.
-
-Interrupted transfers retain `.partial` files. Completed extraction is cached with checksums, and the final bundle appears only after validation succeeds. If preparation fails, inspect the named step in `status.json` and its `setup.log`, then rerun the same command. Failed staged bundles remain under `.brass-bundle-*` beside the requested output for diagnosis; they are not used for calling. An existing completed bundle with changed inputs is reported as a mismatch: select a new `brass.bundle` directory for the new reference/image.
-
-### Existing publisher files or an adapted bundle
-
-If you already have the extracted publisher files, you can skip downloading. Put the `CNV_SV_ref/` and `VAGrENT_ref_GRCh37d5_ensembl_75/` directories under `resources/brass/source/`, then run the lower-level preparation command:
-
-~~~bash
-python scripts/prepare_brass_bundle.py \
-  --source resources/brass/source \
-  --source-dict config/brass-GRCh37d5.dict \
-  --reference resources/reference/reference.fa \
-  --image containers/images/brass-v6.3.4.sif \
-  --output resources/brass/bundle --engine apptainer
-~~~
-
-Use `--engine singularity` on Singularity sites. For resources already adapted by this framework, `--reuse-adapted` accepts the existing directory as `--source`, without `--source-dict`. It checks hashes, reruns native readers and creates a new validated bundle. Use a new `--output` directory: the lower-level preparation command does not overwrite existing bundles.
-
-Native validation creates `COMPATIBILITY_VALIDATED`, `native-validation.json`, `bundle-receipt.json` and the runtime overlay alongside the resources. The caller launcher's automatic setup check verifies required files and validation status before BRASS task submission. These checks are separate from the shared human reference check because they validate different resources.
+Run setup again to reuse a completed bundle or resume downloads. Keep `resources/brass/source/`, which supplies linked files. Logs are in `logs/brass-setup-TIMESTAMP/`. Reuse an existing prepared bundle for the same reference by setting `brass.bundle` in YAML.
 
 ## Optional Setup Checks
 
 ~~~bash
 python scripts/workflow.py callers --config config/private-cohort.yaml --check-files
-python scripts/test_installation.py
-# Workstation / allocated compute node:
-python scripts/workflow.py test --profile test
-python scripts/test_main_stub.py --out results/main_stub_check01
 ~~~
 
-`--check-files` is a read-only inventory check and works without Nextflow or caller execution. Real launches perform it automatically and retain `setup-check.json` in their logs. The toy test produces three events; the entry-point test exercises synthetic BAM preflight and cached caller stubs. [Test details](validation.md).
+File checks also run at launch. [Installation tests](validation.md).

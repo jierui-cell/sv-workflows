@@ -1,1 +1,3 @@
 outdir: results/toy
+modules: null
+caller_config: config/private-cohort.yaml

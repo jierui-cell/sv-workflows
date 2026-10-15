@@ -15,6 +15,8 @@ import subprocess
 import sys
 import yaml
 from check_resources import write_resolved_samplesheet
+from workflow import resolve_config
+from hpc_environment import load_modules
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,12 +27,20 @@ def run(command, **kwargs):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',required=True,type=Path)
+    parser.add_argument('--config',type=Path,help='Caller YAML supplying modules; defaults to config/private-cohort.yaml when present')
     parser.add_argument('--manta-image',type=Path)
     parser.add_argument('--container-engine',choices=('apptainer','singularity'),help='Runtime for the optional Manta container check')
     parser.add_argument('--debug-cache',action='store_true',help='Include detailed hash/cache diagnostics in test logs')
     parser.add_argument('--with-exclusions',action='store_true',help='Exercise the optional DELLY/GRIDSS/Manta region policy')
     parser.add_argument('--sequencing-type',choices=('WGS','WES','targeted'),default='WGS')
     args = parser.parse_args()
+    default_config = ROOT/'config/private-cohort.yaml'
+    paths = [args.config] if args.config else ([default_config] if default_config.is_file() else [])
+    try:
+        site = resolve_config('callers',paths,root=ROOT)
+        load_modules(site.get('modules'))
+    except (ValueError,OSError,yaml.YAMLError) as exc:
+        parser.error(str(exc))
     if args.sequencing_type != 'WGS' and not args.manta_image:
         parser.error('Capture entry-point tests require --manta-image')
     engine = args.container_engine or os.environ.get('SV_CONTAINER_ENGINE') or ('apptainer' if shutil.which('apptainer') else 'singularity')
@@ -91,6 +101,8 @@ def main():
                          os.path.relpath(files['normal'],ROOT),
                          os.path.relpath(str(files['normal'])+'.bai',ROOT),'unknown','synthetic','',''])
     cfg = yaml.safe_load((ROOT/'config/defaults.yaml').read_text())
+    for key in ('modules','modules_samtools','modules_bcftools','modules_calling'):
+        cfg[key] = site[key]
     cfg['container_engine'] = engine
     callers = ['delly','gridss'] if args.with_exclusions else ['delly','svaba','gridss','brass']
     if args.sequencing_type != 'WGS':
@@ -150,6 +162,10 @@ def main():
         tasks = list(csv.DictReader(handle,delimiter='\t'))
     if len(tasks) != len(callers)+1 or any(row['status']!='CACHED' for row in tasks):
         raise RuntimeError('Expected preflight and every requested caller stub to resume from cache: '+repr(tasks))
+    if cfg['modules']:
+        wrappers = list((base/'work').rglob('.command.run'))
+        if not wrappers or any(any(name not in path.read_text() for name in cfg['modules']) for path in wrappers):
+            raise RuntimeError('A task wrapper is missing the configured modules')
     for role in ('tumor','normal'):
         count = base/'results/preflight/SYNTHETIC'/(role+'.interval_read_count.txt')
         if int(count.read_text().strip()) != 1:
@@ -159,6 +175,7 @@ def main():
                'manta_container_configuration_tested':bool(args.manta_image),
                'exclusions_tested':args.with_exclusions}
     summary['relative_bam_paths_and_stable_input_cache_tested'] = True
+    summary['modules'] = cfg['modules']
     if args.with_exclusions:
         for caller in [name for name in callers if name in ('delly','gridss')]:
             audit = json.loads((base/'results'/caller/'SYNTHETIC/output/regions.audit.json').read_text())

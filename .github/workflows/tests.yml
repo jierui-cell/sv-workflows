@@ -25,7 +25,17 @@ jobs:
       - run: python scripts/test_installation.py
       - run: python scripts/audit_publication.py
       - run: python scripts/workflow.py test --profile test
-      - run: python scripts/test_main_stub.py --out results/ci-main-stub
+      - name: Caller stubs with automatic module loading and resume
+        shell: bash
+        run: |
+          module() {
+            if [[ "$1" == load ]]; then
+              export SV_TEST_MODULE=loaded
+              export LOADEDMODULES=sv_workflows_ci/1
+            fi
+          }
+          export -f module
+          python scripts/test_main_stub.py --config tests/module-fixture.yaml --out results/ci-main-stub
       - run: python scripts/test_main_stub.py --out results/ci-region-stub --with-exclusions
       # PCAWG/ClusterSV numerical workflows are on hold; source/tests are retained.
       - run: python scripts/build_docs.py

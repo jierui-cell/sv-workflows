@@ -18,6 +18,7 @@ from adapt_brass_resources import dictionary, mapping
 from check_resources import BRASS_FILES, normalize_paths
 from prepare_brass_bundle import validate_adapted
 from workflow import merge, override, read_yaml
+from hpc_environment import load_modules
 
 ROOT = Path(__file__).resolve().parents[1]
 BRASS = 'CNV_SV_ref/brass/'
@@ -143,6 +144,7 @@ def select_engine(preferred, explicit=False):
 
 
 def setup(config, root=ROOT, engine_explicit=True):
+    load_modules(config.get('modules'))
     config = normalize_paths(config, 'callers', root)
     reference = Path(config['reference']).resolve()
     image = Path(config['brass']['image'])
@@ -231,7 +233,9 @@ def main():
     try:
         config = read_yaml(ROOT / 'config/defaults.yaml')
         engine_explicit = False
-        for path in args.config:
+        default_config = ROOT/'config/private-cohort.yaml'
+        paths = args.config or ([default_config] if default_config.is_file() else [])
+        for path in paths:
             overlay = read_yaml(path)
             engine_explicit = engine_explicit or 'container_engine' in overlay
             config = merge(config, overlay)

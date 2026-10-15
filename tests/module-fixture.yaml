@@ -1,0 +1,2 @@
+# Synthetic CI module; supplied by the workflow's exported shell function.
+modules: [sv_workflows_ci/1]

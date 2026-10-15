@@ -1,4 +1,5 @@
 # Run from the repository root; this preparation is independent of cohort/caller.
+modules: []
 timing_outdir: resources/replication_timing/pcawg_mean_tertiles
 timing_python: environments/replication-timing-python/bin/python
 timing_label_policy: tertiles  # User-selected T1/T2; not claimed as published PCAWG cutoffs.

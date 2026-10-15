@@ -5,7 +5,7 @@ process INTEGRATED_CALLER {
     time { settings.time }
     maxForks (params.max_parallel_callers as int)
     scratch false
-    module { params.modules_calling ?: '' }
+    module { ((params.modules ?: []) + (params.modules_calling ?: '').tokenize(':')).unique().join(':') }
     publishDir "${params.outdir}/${tool}/${meta.id}", mode: 'copy'
     input:
     tuple val(meta), val(tool), val(settings), path(manifest)

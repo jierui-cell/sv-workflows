@@ -9,4 +9,15 @@ root=$(cd "$root" && pwd -P)
     exit 2
 }
 cd "$root"
-exec "${SV_PYTHON:-python3}" scripts/workflow.py "$@" --profile slurm
+if [[ -n ${SV_PYTHON:-} ]]; then
+    launcher_python=$SV_PYTHON
+elif [[ -x "$root/.venv/bin/python" ]]; then
+    launcher_python="$root/.venv/bin/python"
+else
+    launcher_python=python3
+fi
+if [[ -d "$root/.venv/bin" ]]; then
+    export PATH="$root/.venv/bin:$PATH"
+fi
+# workflow.py loads YAML modules before invoking Nextflow.
+exec "$launcher_python" scripts/workflow.py "$@" --profile slurm
