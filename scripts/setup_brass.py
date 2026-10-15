@@ -179,13 +179,6 @@ def setup(config, root=ROOT, engine_explicit=True):
                 log.write(json.dumps(argv) + '\n'); log.flush()
                 subprocess.run(argv, check=True, stdout=log, stderr=subprocess.STDOUT)
             try:
-                step = 'caller_image'
-                if not image.is_file():
-                    default_image = root / 'containers/images/brass-v6.3.4.sif'
-                    if image != default_image:
-                        raise ValueError('Configured custom BRASS image is absent: ' + str(image))
-                    run([sys.executable, str(root / 'scripts/fetch_containers.py'),
-                         '--engine', engine, '--tools', 'brass'])
                 step = 'existing_bundle'
                 if bundle.exists():
                     check_existing_bundle(bundle, reference, image)

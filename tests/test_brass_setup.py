@@ -282,6 +282,9 @@ class BrassSetupTests(unittest.TestCase):
 
     def test_failed_preparation_is_logged_without_publishing_bundle(self):
         config = self.configured_root()
+        # Image installation belongs to the earlier installation step: even a
+        # missing image must not trigger a container download in resource setup.
+        (self.root / config['brass']['image']).unlink()
         with (ROOT / 'config/brass-resources.tsv').open() as handle:
             rows = list(csv.DictReader(handle, delimiter='\t'))
         (self.root / 'config/brass-resources.tsv').write_text(
@@ -289,10 +292,12 @@ class BrassSetupTests(unittest.TestCase):
         with patch.object(setup.shutil, 'which', return_value='/tool'), \
              patch.object(setup, 'fetch', side_effect=rows), \
              patch.object(setup, 'prepare_source'), \
-             patch.object(setup.subprocess, 'run', side_effect=subprocess.CalledProcessError(1, 'prepare')):
+             patch.object(setup.subprocess, 'run', side_effect=subprocess.CalledProcessError(1, 'prepare')) as command:
             with self.assertRaisesRegex(ValueError, 'adaptation_and_native_validation'):
                 setup.setup(config, self.root)
         self.assertFalse((self.root / 'resources/brass/bundle').exists())
+        self.assertEqual(command.call_count, 1)
+        self.assertEqual(Path(command.call_args.args[0][1]).name, 'prepare_brass_bundle.py')
         status = next((self.root / 'logs').glob('brass-setup-*/status.json'))
         self.assertEqual(json.loads(status.read_text())['step'], 'adaptation_and_native_validation')
 

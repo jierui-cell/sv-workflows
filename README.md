@@ -84,7 +84,7 @@ samtools dict resources/reference/reference.fa > resources/reference/reference.d
 
 ### 4. Set up BRASS's extra resources (once)
 
-**All five callers use the same human FASTA above.** BRASS additionally needs annotation/filtering files in `resources/brass/bundle/`: depth/GC masks, gene/chromosome annotations and microbial/viral sequences. This is **not a second human reference**.
+BRASS uses the **same human FASTA** as the other callers, plus the masks and annotations listed in its [reference guide](https://github.com/cancerit/BRASS/wiki). This step prepares those extra resources.
 
 After preparing the shared reference, run this command from the checkout root on an allocated compute node with internet access:
 
@@ -92,7 +92,7 @@ After preparing the shared reference, run this command from the checkout root on
 python scripts/setup_brass.py
 ~~~
 
-It downloads the two official Sanger archives (~3.1 GB), verifies their checksums, extracts the needed files, adapts chromosome labels to your shared reference and runs BRASS's native resource checks. It also downloads the pinned BRASS image if absent. The resulting folder already matches the YAML default; no path edits are needed. Repeat the command to verify/reuse an existing bundle.
+The command downloads Sanger's [BRASS resources](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/CNV_SV_ref_GRCh37d5_brass6+.tar.gz) and [VAGrENT annotations](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz) (~3.1 GB) and prepares `resources/brass/bundle/` for your shared reference. [Why preparation is needed](docs/setup.md#why-preparation-is-needed).
 
 **Using Singularity?** Run:
 

@@ -54,7 +54,7 @@ Automatic preflight checks BAM/reference dictionaries, the declared build, sampl
 
 ### One-command setup
 
-Prepare the shared FASTA, `.fai` and `.dict` as above, then run from the checkout root in a compute allocation with internet access. Load Apptainer (or Singularity), `curl` and `patch`; the Python environment is the same one used by the launcher:
+Use the BRASS image installed in [Caller Containers](#caller-containers) and the shared FASTA, `.fai` and `.dict` prepared above. Run from the checkout root in a compute allocation with internet access, using Apptainer (or Singularity), `curl`, `patch` and the launcher's Python environment:
 
 ~~~bash
 python scripts/setup_brass.py
@@ -77,7 +77,7 @@ Runtime selection follows `--engine` → `--set container_engine=...` → explic
 The command performs these steps automatically:
 
 1. Checks the shared reference's sequence names, lengths and MD5 identities against the versioned GRCh37d5 dictionary, before downloading.
-2. Downloads the pinned BRASS container if it is missing, then the two official Sanger archives (~3.1 GB) into `resources/brass/downloads/`. It verifies pinned MD5 and SHA-256 checksums and resumes interrupted transfers.
+2. Downloads the two Sanger resource archives (~3.1 GB) into `resources/brass/downloads/`, verifies their pinned MD5 and SHA-256 checksums and resumes interrupted transfers.
 3. Extracts only the BRASS and VAGrENT files used by this workflow into `resources/brass/source/`. It leaves unrelated ASCAT files and the optional normal panel unused.
 4. Adapts chromosome labels, rebuilds resource indexes and checks the resources with BRASS/VAGrENT's native readers. **No coordinates are lifted over, BAMs realigned or human genomes replaced.**
 5. Publishes the validated folder at `brass.bundle` (default `resources/brass/bundle/`) and records the outcome in `logs/brass-setup-TIMESTAMP/status.json` and `setup.log`.
@@ -86,8 +86,14 @@ The download URLs and checksums are versioned in [config/brass-resources.tsv](..
 
 | Archive | Resources used by BRASS |
 | --- | --- |
-| `CNV_SV_ref_GRCh37d5_brass6+.tar.gz` | High-depth masks, GC windows, centromere/telomere and cytoband annotations, viral/bacterial sequences |
-| `VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz` | Transcript annotation cache and transcript sequences |
+| [CNV_SV_ref_GRCh37d5_brass6+.tar.gz](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/CNV_SV_ref_GRCh37d5_brass6+.tar.gz) | High-depth masks, GC windows, centromere/telomere and cytoband annotations, viral/bacterial sequences |
+| [VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz](https://ftp.sanger.ac.uk/pub/cancer/dockstore/human/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz) | Transcript annotation cache and transcript sequences |
+
+### Why preparation is needed
+
+BRASS's [reference guide](https://github.com/cancerit/BRASS/wiki) and [v6.3.4 input specification](https://github.com/cancerit/BRASS/blob/v6.3.4/perl/bin/brass.pl#L363-L380) list these resources separately from the human FASTA. Sanger supplies them in the two archives above and describes [building bundles for different naming conventions](https://github.com/cancerit/dockstore-cgpwgs/wiki/Reference-archives#generating-alternative-reference-sets).
+
+Our [adapter](../scripts/adapt_brass_resources.py) matches the archives to the shared reference: it verifies sequence identities, converts chromosome labels such as `1` to `chr1`, and rebuilds the resource indexes. This label adaptation is part of this workflow; genomic coordinates stay unchanged.
 
 The small [GRCh37d5 dictionary](../config/brass-GRCh37d5.dict) is included as public reference metadata: chromosome names, lengths and sequence MD5s derived from the [1000 Genomes hs37d5 reference](https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/reference/phase2_reference_assembly_sequence/). Its header records the source URL and compressed FASTA SHA-256. You do **not** need to download another human FASTA or find a separate dictionary yourself.
 
