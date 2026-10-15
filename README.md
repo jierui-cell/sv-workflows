@@ -94,7 +94,7 @@ python scripts/setup_brass.py
 
 It downloads the two official Sanger archives (~3.1 GB), verifies their checksums, extracts the needed files, adapts chromosome labels to your shared reference and runs BRASS's native resource checks. It also downloads the pinned BRASS image if absent. The resulting folder already matches the YAML default; no path edits are needed. Repeat the command to verify/reuse an existing bundle.
 
-For Singularity, add `--engine singularity`. If you use custom paths, pass the same `--config config/private-cohort.yaml` as your caller run. The one-command route prepares **chr-prefixed GRCh37** resources; skip this step when BRASS is not selected. [Resource contents, download sources, logs and reuse](docs/setup.md#brass-bundle).
+Setup detects Apptainer or Singularity automatically when you have not chosen a runtime. To select Singularity explicitly, use `python scripts/setup_brass.py --engine singularity`. If you use custom paths, pass the same `--config config/private-cohort.yaml` as your caller run; an explicit YAML `container_engine` setting is respected. Set `container_engine: singularity` in that YAML for subsequent caller runs too—setup does not edit your configuration. The one-command route prepares **chr-prefixed GRCh37** resources; skip this step when BRASS is not selected. [Resource contents, download sources, logs and reuse](docs/setup.md#brass-bundle).
 
 ## Usage Instructions
 

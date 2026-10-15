@@ -127,7 +127,22 @@ def check_existing_bundle(bundle, reference, image):
     validate_adapted(bundle, reference.with_suffix('.dict'))
 
 
-def setup(config, root=ROOT):
+def select_engine(preferred, explicit=False):
+    """Detect an installed SIF runtime without overriding an explicit user choice."""
+    if preferred not in ('apptainer', 'singularity'):
+        raise ValueError('container_engine must be apptainer or singularity')
+    candidates = (preferred,) if explicit else (preferred, 'singularity' if preferred == 'apptainer' else 'apptainer')
+    for engine in candidates:
+        if shutil.which(engine):
+            return engine
+    if explicit:
+        raise ValueError(f'Requested container runtime is unavailable: {preferred}. '
+                         'Load its module or choose --engine singularity / --engine apptainer.')
+    raise ValueError('No container runtime found. Load an Apptainer or Singularity module, '
+                     'then rerun; --engine singularity and --engine apptainer are supported.')
+
+
+def setup(config, root=ROOT, engine_explicit=True):
     config = normalize_paths(config, 'callers', root)
     reference = Path(config['reference']).resolve()
     image = Path(config['brass']['image'])
@@ -141,10 +156,9 @@ def setup(config, root=ROOT):
     # Refuse incompatible builds before any large download. Native checks also
     # verify the supported chr1-22/chrX/chrY calling scope during preparation.
     mapping(dictionary(source_dict), dictionary(reference.with_suffix('.dict')))
-    engine = config['container_engine']
-    if engine not in ('apptainer', 'singularity'):
-        raise ValueError('container_engine must be apptainer or singularity')
-    for command in (engine, 'curl', 'patch'):
+    engine = select_engine(config['container_engine'], explicit=engine_explicit)
+    print('Container runtime: ' + engine, flush=True)
+    for command in ('curl', 'patch'):
         if not shutil.which(command):
             raise ValueError('Load/install required setup tool: ' + command)
     folder = root / 'resources/brass'
@@ -202,10 +216,10 @@ def setup(config, root=ROOT):
                     prepared.rename(bundle)
                     staging.rmdir()
                     outcome = 'prepared_and_validated'
-                report = {'status': 'passed', 'outcome': outcome, 'reference': str(reference),
+                report = {'status': 'passed', 'outcome': outcome, 'container_engine': engine, 'reference': str(reference),
                           'bundle': str(bundle), 'commands': commands}
             except Exception as exc:
-                report = {'status': 'failed', 'step': step, 'error': str(exc), 'commands': commands}
+                report = {'status': 'failed', 'step': step, 'container_engine': engine, 'error': str(exc), 'commands': commands}
                 (log_dir / 'status.json').write_text(json.dumps(report, indent=2) + '\n')
                 raise ValueError(f'BRASS setup failed at {step}: {exc}; log: {log_dir}/setup.log') from exc
             (log_dir / 'status.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -218,17 +232,23 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--config', type=Path, action='append', default=[], help='Same YAML overlays as the caller launcher')
     ap.add_argument('--set', action='append', default=[], metavar='KEY=VALUE')
-    ap.add_argument('--engine', choices=('apptainer', 'singularity'), help='Override container_engine for setup')
+    ap.add_argument('--engine', choices=('apptainer', 'singularity'),
+                    help='Choose runtime; otherwise honor YAML/--set, or detect Apptainer then Singularity')
     args = ap.parse_args()
     try:
         config = read_yaml(ROOT / 'config/defaults.yaml')
+        engine_explicit = False
         for path in args.config:
-            config = merge(config, read_yaml(path))
+            overlay = read_yaml(path)
+            engine_explicit = engine_explicit or 'container_engine' in overlay
+            config = merge(config, overlay)
         for item in args.set:
             override(config, item)
+            engine_explicit = engine_explicit or item.partition('=')[0] == 'container_engine'
         if args.engine:
             config['container_engine'] = args.engine
-        setup(config)
+            engine_explicit = True
+        setup(config, engine_explicit=engine_explicit)
     except (ValueError, OSError, KeyError, yaml.YAMLError) as exc:
         ap.error(str(exc))
 

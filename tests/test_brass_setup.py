@@ -35,6 +35,57 @@ class BrassSetupTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
+    def test_runtime_detection_and_explicit_choices(self):
+        for installed, preferred, explicit, expected in (
+            ({'apptainer', 'singularity'}, 'apptainer', False, 'apptainer'),
+            ({'singularity'}, 'apptainer', False, 'singularity'),
+            ({'apptainer'}, 'apptainer', False, 'apptainer'),
+            ({'apptainer', 'singularity'}, 'singularity', True, 'singularity'),
+            ({'apptainer', 'singularity'}, 'apptainer', True, 'apptainer'),
+        ):
+            with self.subTest(installed=installed, explicit=explicit), \
+                 patch.object(setup.shutil, 'which', side_effect=lambda x: '/bin/' + x if x in installed else None):
+                self.assertEqual(setup.select_engine(preferred, explicit), expected)
+        with patch.object(setup.shutil, 'which', side_effect=lambda x: '/bin/singularity' if x == 'singularity' else None):
+            with self.assertRaisesRegex(ValueError, 'Requested container runtime is unavailable: apptainer'):
+                setup.select_engine('apptainer', explicit=True)
+        with patch.object(setup.shutil, 'which', return_value=None):
+            with self.assertRaisesRegex(ValueError, 'No container runtime found'):
+                setup.select_engine('apptainer')
+        with self.assertRaisesRegex(ValueError, 'container_engine must be'):
+            setup.select_engine('docker')
+
+    def test_cli_runtime_precedence(self):
+        overlay = self.root / 'cohort.yaml'
+        overlay.write_text('container_engine: singularity\n')
+        paths_only = self.root / 'paths.yaml'
+        paths_only.write_text('reference: resources/reference/reference.fa\n')
+        cases = [([], 'apptainer', False),
+                 (['--config', str(paths_only)], 'apptainer', False),
+                 (['--config', str(overlay)], 'singularity', True),
+                 (['--config', str(overlay), '--config', str(paths_only)], 'singularity', True),
+                 (['--config', str(overlay), '--set', 'container_engine=apptainer'], 'apptainer', True),
+                 (['--set', 'container_engine=singularity'], 'singularity', True),
+                 (['--set', 'container_engine=apptainer', '--engine', 'singularity'], 'singularity', True)]
+        for argv, engine, explicit in cases:
+            with self.subTest(argv=argv), patch.object(sys, 'argv', ['setup_brass.py'] + argv), \
+                 patch.object(setup, 'setup') as run_setup:
+                setup.main()
+            self.assertEqual(run_setup.call_args.args[0]['container_engine'], engine)
+            self.assertEqual(run_setup.call_args.kwargs['engine_explicit'], explicit)
+
+    def test_auto_detected_singularity_is_recorded_for_setup(self):
+        config = self.configured_root()
+        (self.root / 'resources/brass/bundle').mkdir(parents=True)
+        with patch.object(setup.shutil, 'which', side_effect=lambda x: None if x == 'apptainer' else '/bin/' + x), \
+             patch.object(setup, 'check_existing_bundle'), \
+             patch.object(setup.subprocess, 'run', side_effect=AssertionError('not needed')):
+            result = setup.setup(config, self.root, engine_explicit=False)
+        self.assertEqual(result['container_engine'], 'singularity')
+        self.assertEqual(config['container_engine'], 'apptainer')  # User YAML/defaults stay unchanged.
+        status = next((self.root / 'logs').glob('brass-setup-*/status.json'))
+        self.assertEqual(json.loads(status.read_text())['container_engine'], 'singularity')
+
     def test_versioned_source_dictionary_is_public_metadata(self):
         path = ROOT / 'config/brass-GRCh37d5.dict'
         identities = dictionary(path)

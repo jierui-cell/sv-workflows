@@ -60,7 +60,7 @@ Prepare the shared FASTA, `.fai` and `.dict` as above, then run from the checkou
 python scripts/setup_brass.py
 ~~~
 
-On Singularity sites:
+With no explicit choice, setup uses the installed runtime: Apptainer first, otherwise Singularity. To select Singularity explicitly:
 
 ~~~bash
 python scripts/setup_brass.py --engine singularity
@@ -71,6 +71,8 @@ If your cohort YAML changes resource paths or the container engine, use it here 
 ~~~bash
 python scripts/setup_brass.py --config config/private-cohort.yaml
 ~~~
+
+Runtime selection follows `--engine` → `--set container_engine=...` → explicit YAML `container_engine` → automatic detection. A requested runtime is never silently replaced. To use Singularity for both setup and caller jobs, put `container_engine: singularity` in your private YAML and pass that YAML to both commands. The setup command does not change YAML defaults or your cohort configuration.
 
 The command performs these steps automatically:
 
