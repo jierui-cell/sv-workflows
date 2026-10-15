@@ -66,14 +66,7 @@ class BenchmarkReportingTests(unittest.TestCase):
             duplicate = summarize([root, root], out, ('manta', 'delly'))
             self.assertEqual(duplicate['status'], 'review_required')
 
-            # Do not silently select one of two benchmark files for a pair.
-            current = root / 'manta/PAIR1/output/benchmark.json'
-            (current.parent.parent / 'benchmark.json').write_text(current.read_text())
-            conflicting = summarize(root, out, ('manta', 'delly'))
-            self.assertEqual(conflicting['status'], 'review_required')
-            self.assertTrue(any('Duplicate benchmark' in issue for issue in conflicting['issues']))
-
-    def test_discovers_standard_historical_and_compact_benchmark_paths(self):
+    def test_discovers_only_the_standard_benchmark_path(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for caller in CALLERS:
@@ -83,15 +76,31 @@ class BenchmarkReportingTests(unittest.TestCase):
                     path.parent.mkdir(parents=True)
                     path.write_text('{}')
                 found = dict(paths_for(root, caller))
-                self.assertEqual(set(found), {'CURRENT', 'LEGACY_OR_COMPACT'})
+                self.assertEqual(set(found), {'CURRENT'})
                 self.assertEqual(found['CURRENT'], root / caller / 'CURRENT/output/benchmark.json')
-                self.assertEqual(found['LEGACY_OR_COMPACT'], root / caller / 'LEGACY_OR_COMPACT/benchmark.json')
+
+    def test_old_layout_cannot_be_reported_as_completed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'calls'
+            path = root / 'manta/PAIR1/benchmark.json'
+            path.parent.mkdir(parents=True)
+            path.write_text('{}')
+            report = summarize(root, Path(temp) / 'summary', ('manta',))
+            self.assertEqual(report['status'], 'review_required')
+            self.assertIn('No completed benchmark reports were found', report['issues'])
 
     def test_manta_declares_and_writes_the_standard_benchmark_path(self):
         process = (ROOT / 'main.nf').read_text().split('process MANTA {', 1)[1].split('\nworkflow {', 1)[0]
         self.assertIn("path 'output/benchmark.json'", process)
         self.assertIn("python3 '${benchmarker}' output/benchmark.json benchmark.meta.json", process)
         self.assertIn("mkdir -p output\n    echo '{\"status\":\"stub_not_benchmarked\"}' > output/benchmark.json", process)
+
+    def test_publishing_has_no_alternate_flat_layout(self):
+        from workflow import merge, read_yaml
+        with self.assertRaisesRegex(ValueError, 'Unknown configuration key: compact_publish'):
+            merge(read_yaml(ROOT / 'config/defaults.yaml'), {'compact_publish': True})
+        for name in ('main.nf', 'modules/call_sv.nf', 'nextflow.config'):
+            self.assertNotIn('compact_publish', (ROOT / name).read_text())
 
 
 if __name__ == '__main__':

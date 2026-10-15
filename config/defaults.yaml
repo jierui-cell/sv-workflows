@@ -13,7 +13,6 @@ modules_bcftools: null
 modules_calling: null
 scheduler_options: ''
 max_parallel_preflight: 3
-compact_publish: false
 input: inputs/samplesheet.tsv
 dataset_id: my_cohort
 reference: resources/reference/reference.fa

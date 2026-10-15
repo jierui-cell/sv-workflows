@@ -6,8 +6,7 @@ process JABBA {
     maxForks (params.max_parallel_callers as int)
     scratch false
     module { params.modules_calling }
-    publishDir "${params.outdir}/jabba/${meta.id}", mode: 'copy', pattern: 'output/*',
-        saveAs: { name -> params.compact_publish ? name.tokenize('/').last() : name }
+    publishDir "${params.outdir}/jabba/${meta.id}", mode: 'copy', pattern: 'output/*'
     input:
     tuple val(meta), path(junctions), path(coverage)
     path image

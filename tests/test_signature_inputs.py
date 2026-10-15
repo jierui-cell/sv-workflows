@@ -48,11 +48,11 @@ class SignatureInputTests(unittest.TestCase):
     def save_caller(self):
         self.write('config/private-cohort.yaml', workflow.yaml.safe_dump(self.caller))
 
-    def complete(self, caller, pair='PAIR_001', compact=False, legacy_manta=False):
+    def complete(self, caller, pair='PAIR_001'):
         base = Path(self.caller['outdir']) / caller / pair
-        task = base if caller == 'manta' or compact else base / 'output'
+        task = base if caller == 'manta' else base / 'output'
         vcf = {
-            'manta': Path('somaticSV.vcf.gz') if compact else Path('manta/results/variants/somaticSV.vcf.gz'),
+            'manta': Path('manta/results/variants/somaticSV.vcf.gz'),
             'delly': Path('somaticSV.vcf.gz'),
             'svaba': Path(pair + '.svaba.somatic.sv.vcf'),
             'gridss': Path('somatic/somatic.high_confidence.vcf.gz'),
@@ -72,8 +72,7 @@ class SignatureInputTests(unittest.TestCase):
                      'dataset_id': self.caller['dataset_id'], 'caller': caller, 'pair_id': pair,
                      'reference': str(reference), 'output_class': 'somatic',
                      'settings': {'genome_build': 'GRCh37', 'sequencing_type': 'WGS'}}
-        benchmark_dir = task / 'output' if caller == 'manta' and not compact and not legacy_manta else task
-        self.write(benchmark_dir / 'benchmark.json', json.dumps(benchmark))
+        self.write(base / 'output/benchmark.json', json.dumps(benchmark))
         if caller == 'brass':
             self.write(task / 'callset/technical-qc.json', '{"status":"technical_qc_passed"}')
         elif caller != 'manta':
@@ -83,10 +82,10 @@ class SignatureInputTests(unittest.TestCase):
                 self.write(task / 'somatic/SUCCESS.json', json.dumps({'stage': stage}))
         return path
 
-    def complete_cohort(self, compact=False):
+    def complete_cohort(self):
         for caller in self.caller['callers'].split(','):
             for pair in ('PAIR_001', 'PAIR_002'):
-                self.complete(caller, pair, compact=compact and caller != 'brass')
+                self.complete(caller, pair)
 
     def test_discovers_all_five_callers_and_never_selects_gridss_joint_or_full(self):
         self.complete_cohort()
@@ -100,16 +99,23 @@ class SignatureInputTests(unittest.TestCase):
         self.assertEqual(source['cohort'], 'synthetic')
         self.assertFalse((self.root / 'inputs/bams').exists())
 
-    def test_compact_publishing_layouts(self):
-        self.complete_cohort(compact=True)
-        self.assertEqual(len(discover(self.config, self.root)[0]), 10)
+    def test_nonstandard_benchmark_paths_are_not_discovered(self):
+        for caller in ('manta', 'delly', 'svaba', 'gridss', 'brass'):
+            self.caller.update(callers=caller, pair_ids='PAIR_001')
+            self.save_caller()
+            self.complete(caller)
+            folder = self.root / self.caller['outdir'] / caller / 'PAIR_001'
+            (folder / 'output/benchmark.json').rename(folder / 'benchmark.json')
+            with self.subTest(caller=caller), self.assertRaisesRegex(ValueError, 'benchmark: expected one file, found 0'):
+                discover(self.config, self.root)
 
-    def test_historical_manta_benchmarks_still_select_native_vcfs(self):
+    def test_flat_manta_vcf_is_not_a_pipeline_output(self):
         self.caller.update(callers='manta', pair_ids='PAIR_001')
         self.save_caller()
-        path = self.complete('manta', legacy_manta=True)
-        rows, _ = discover(self.config, self.root)
-        self.assertEqual([row['vcf'] for row in rows], [str(path)])
+        path = self.complete('manta')
+        path.rename(path.parents[3] / 'somaticSV.vcf.gz')
+        with self.assertRaisesRegex(ValueError, 'final SV VCF: expected one file, found 0'):
+            discover(self.config, self.root)
 
     def test_group_and_pair_selections_do_not_require_unselected_outputs(self):
         self.complete('delly', 'PAIR_002')
@@ -182,10 +188,10 @@ class SignatureInputTests(unittest.TestCase):
             discover(self.config, self.root)
 
     def test_ambiguous_final_outputs_are_reported(self):
-        self.caller.update(callers='manta', pair_ids='PAIR_001')
+        self.caller.update(callers='brass', pair_ids='PAIR_001')
         self.save_caller()
-        self.complete('manta')
-        self.complete('manta', compact=True)
+        path = self.complete('brass')
+        path.with_name('another.annot.vcf.gz').write_bytes(path.read_bytes())
         with self.assertRaisesRegex(ValueError, 'expected one file, found 2'):
             discover(self.config, self.root)
 

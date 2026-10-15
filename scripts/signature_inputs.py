@@ -83,7 +83,7 @@ def discover(config, root):
             folder = Path(caller['outdir']) / name / pair
             label = f'{cohort}:{name}:{pair}'
             try:
-                benchmark_path = one_file([folder / 'benchmark.json', folder / 'output/benchmark.json'], label + ' benchmark')
+                benchmark_path = one_file([folder / 'output/benchmark.json'], label + ' benchmark')
                 benchmark = record(benchmark_path)
                 if benchmark.get('schema') != 'sv-caller-benchmark/v1' or type(benchmark.get('exit_code')) is not int or benchmark['exit_code'] != 0:
                     raise ValueError('caller task is incomplete, failed or a stub: ' + str(benchmark_path))
@@ -97,11 +97,10 @@ def discover(config, root):
                     raise ValueError('benchmark settings must be a JSON object')
                 if settings.get('genome_build', caller['genome_build']) != config['genome_build'] or settings.get('sequencing_type', caller['sequencing_type']) != config['sequencing_type']:
                     raise ValueError('benchmark build/assay differs from signature settings')
-                # Manta keeps its native VCF tree at the pair root; its benchmark
-                # is now in output/, with historical root-level records supported.
-                task = folder if name == 'manta' else benchmark_path.parent
+                # Manta's native VCF tree is rooted at the pair directory.
+                task = folder if name == 'manta' else folder / 'output'
                 patterns = {
-                    'manta': ('manta/results/variants/somaticSV.vcf.gz', 'somaticSV.vcf.gz'),
+                    'manta': ('manta/results/variants/somaticSV.vcf.gz',),
                     'delly': ('somaticSV.vcf.gz',),
                     'svaba': (pair + '.svaba.somatic.sv.vcf',),
                     'gridss': ('somatic/somatic.high_confidence.vcf.gz',),

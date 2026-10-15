@@ -2,7 +2,7 @@
 
 All five callers use `measure_benchmark.py` with the same task boundary: after preflight, from caller preparation/configuration through filtering and final QC. `elapsed_seconds` excludes queue delay and shared reference preparation.
 
-Benchmarks are saved at `CALLER/PAIR/output/benchmark.json`. The exporter also reads historical Manta and compact-layout reports at `CALLER/PAIR/benchmark.json`.
+All callers save benchmarks at `CALLER/PAIR/output/benchmark.json`. Performance exports and signature-input discovery use this same location.
 
 ## What Is Measured
 

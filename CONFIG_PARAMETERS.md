@@ -40,7 +40,6 @@ This example is a **preview only**: `--dry-run` prints the final configuration a
 | `modules_samtools`, `modules_bcftools`, `modules_calling` | `null`; legacy task-specific additions, colon-separated; use `modules` for shared tools |
 | `max_parallel_callers` | `3` per caller process, not a global total |
 | `max_parallel_preflight` | `3` simultaneous input checks |
-| `compact_publish` | `false`; preserve native output hierarchy |
 
 Choose the backend with `--profile`; use `--site-config` for scheduler-specific Nextflow settings. The Slurm driver fixes the Slurm profile. `--resume SESSION_UUID` resumes an existing session. Local real-data execution requires `--allow-local` on an already allocated node/workstation.
 

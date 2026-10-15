@@ -55,8 +55,7 @@ process MANTA {
     maxForks (params.max_parallel_callers as int)
     scratch false
     module { ((params.modules ?: []) + (params.modules_bcftools ?: '').tokenize(':')).unique().join(':') }
-    publishDir "${params.outdir}/manta/${meta.id}", mode: 'copy',
-        saveAs: { name -> params.compact_publish ? name.tokenize('/').last() : name }
+    publishDir "${params.outdir}/manta/${meta.id}", mode: 'copy'
     input:
     tuple val(meta), path(tumor_bam), path(tumor_bai), path(normal_bam), path(normal_bai)
     path reference

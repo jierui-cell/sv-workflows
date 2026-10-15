@@ -6,8 +6,7 @@ process CALL_SV {
     maxForks (params.max_parallel_callers as int)
     scratch false
     module { ((params.modules ?: []) + (params.modules_calling ?: '').tokenize(':')).unique().join(':') }
-    publishDir "${params.outdir}/${tool}/${meta.id}", mode: 'copy', pattern: 'output/*',
-        saveAs: { name -> params.compact_publish ? name.tokenize('/').last() : name }
+    publishDir "${params.outdir}/${tool}/${meta.id}", mode: 'copy', pattern: 'output/*'
     input:
     tuple val(meta), val(tool), val(settings), path(image), path(tumor), path(tumor_bai), path(normal), path(normal_bai)
     path reference_files
