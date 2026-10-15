@@ -102,7 +102,7 @@ python scripts/setup_brass.py --engine singularity
 
 Also set `container_engine: singularity` in your cohort YAML so caller jobs use Singularity too.
 
-**Running BRASS?** Complete this BRASS resource setup. It supports compatible GRCh37 references with chromosome names such as `chr1` and `chr2`. For other reference builds, adapt [`scripts/setup_brass.py`](scripts/setup_brass.py) and its preparation helpers to use matching resources and chromosome names. [Setup details](docs/setup.md#brass-bundle).
+The BRASS setup supports compatible GRCh37 references with chromosome names such as `chr1` and `chr2`. For other reference builds, adapt [`scripts/setup_brass.py`](scripts/setup_brass.py) and its preparation helpers to use matching resources and chromosome names. [Setup details](docs/setup.md#brass-bundle).
 
 ## Usage Instructions
 
