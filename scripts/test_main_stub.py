@@ -9,6 +9,7 @@ import csv
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -30,7 +31,33 @@ def main():
     parser.add_argument('--with-exclusions',action='store_true',help='Exercise the optional DELLY/GRIDSS/Manta region policy')
     parser.add_argument('--sequencing-type',choices=('WGS','WES','targeted'),default='WGS')
     args = parser.parse_args()
+    if args.sequencing_type != 'WGS' and not args.manta_image:
+        parser.error('Capture entry-point tests require --manta-image')
+    engine = args.container_engine or os.environ.get('SV_CONTAINER_ENGINE') or ('apptainer' if shutil.which('apptainer') else 'singularity')
+    tools = ['nextflow', 'java', 'samtools']
+    if args.manta_image:
+        if not args.manta_image.is_file():
+            parser.error('Manta image does not exist: ' + str(args.manta_image))
+        if engine not in ('apptainer','singularity'):
+            parser.error('Container engine must be apptainer or singularity')
+        tools.append(engine)
+        if args.with_exclusions or args.sequencing_type != 'WGS':
+            tools.extend(['bgzip','tabix'])
+    missing = [name for name in tools if not shutil.which(name)]
+    if missing:
+        parser.error('Missing test tools on PATH: ' + ', '.join(missing) +
+                     '. Load the required HPC modules and install Nextflow 25.10.7; see docs/setup.md#launcher-and-compute-tools')
     base = args.out.resolve()
+    if base.exists():
+        parser.error('Output already exists: ' + str(base) + '; choose a fresh --out directory')
+    try:
+        version = subprocess.check_output(['nextflow','-version'], text=True, stderr=subprocess.STDOUT,
+                                          env=dict(os.environ,NXF_VER='25.10.7'))
+    except (OSError,subprocess.CalledProcessError) as exc:
+        parser.error('Nextflow could not start; load Java 17+ and Nextflow 25.10.7. '
+                     'See docs/setup.md#launcher-and-compute-tools.\n' + str(getattr(exc,'output',None) or exc))
+    if not re.search(r'\bversion\s+25\.10\.7\b',version):
+        parser.error('Expected Nextflow 25.10.7; see docs/setup.md#launcher-and-compute-tools')
     base.mkdir(parents=True,exist_ok=False)
     data = base/'data'; data.mkdir()
     aliases = base/'aliases'; aliases.mkdir()
@@ -64,12 +91,9 @@ def main():
                          os.path.relpath(files['normal'],ROOT),
                          os.path.relpath(str(files['normal'])+'.bai',ROOT),'unknown','synthetic','',''])
     cfg = yaml.safe_load((ROOT/'config/defaults.yaml').read_text())
-    engine = args.container_engine or os.environ.get('SV_CONTAINER_ENGINE') or ('apptainer' if shutil.which('apptainer') else 'singularity')
     cfg['container_engine'] = engine
     callers = ['delly','gridss'] if args.with_exclusions else ['delly','svaba','gridss','brass']
     if args.sequencing_type != 'WGS':
-        if not args.manta_image:
-            parser.error('Capture entry-point tests require --manta-image')
         callers = []
     image = data/'STUB_ONLY.sif'; image.write_text('Not a container; caller stubs only\n')
     cfg.update(input=str(sheet),reference=str(ref),dataset_id='synthetic_stub',

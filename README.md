@@ -63,6 +63,8 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ~~~
 
+Load Java, samtools and bcftools through your HPC modules. Install Nextflow separately if your site has no module: [copy-and-paste tool setup](docs/setup.md#launcher-and-compute-tools). The Python environment supplies Python dependencies; the command-line tools come from modules or their own installations.
+
 ### 2. Download caller images
 
 ~~~bash
@@ -283,7 +285,7 @@ Native outputs and QC remain alongside these files. GRIDSS's separate `joint.vcf
 
 ## Test Your Installation
 
-Optional setup checks:
+Activate `.venv` and load the tools from [installation](docs/setup.md#launcher-and-compute-tools), then run these optional checks:
 
 ~~~bash
 python scripts/test_installation.py

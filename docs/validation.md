@@ -22,7 +22,7 @@ Signature-input tests exercise automatic discovery for all five callers, native/
 
 ## Entry-Point Tests
 
-On a workstation or allocated node:
+On a workstation or allocated compute node, activate `.venv` and load Java 17+, Nextflow 25.10.7 and samtools first. [Tool setup](setup.md#launcher-and-compute-tools).
 
 ~~~bash
 python scripts/workflow.py test --profile test
@@ -30,6 +30,8 @@ python scripts/test_main_stub.py --out results/main_stub_check01
 ~~~
 
 The toy task retains three SV events. The entry-point control runs actual `main.nf` preflight on indexed synthetic BAMs, exercises four caller stubs and verifies cached resume. Add `--manta-image containers/images/manta-1.6.0--py27h9948957_6.sif` for Manta configuration. `--with-exclusions` checks region policies. Choose a fresh test output directory.
+
+The stub test checks required tools before creating its output folder. An interrupted test leaves its files in place; use a new name such as `--out results/main_stub_check02` for the next attempt.
 
 ## Signature Controls
 

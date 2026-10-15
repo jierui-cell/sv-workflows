@@ -193,7 +193,8 @@ def main():
         if args.site_config and not args.site_config.is_file():
             raise ValueError('Missing --site-config: '+str(args.site_config))
         if not shutil.which('nextflow'):
-            raise ValueError('Install Nextflow 25.10.7 and Java 17+ or load the corresponding HPC modules')
+            raise ValueError('Nextflow is not on PATH. Install Nextflow 25.10.7 or load its module; '
+                             'see docs/setup.md#launcher-and-compute-tools. Java 17+ is also required.')
         log_dir.mkdir(parents=True)
         if resource_report:
             (log_dir/'setup-check.json').write_text(json.dumps(resource_report,indent=2)+'\n')
@@ -211,7 +212,14 @@ def main():
             hashes[name] = hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
         env = dict(os.environ, NXF_VER='25.10.7',
                    SV_CONTAINER_ENGINE=config.get('container_engine','apptainer'))
-        nf_version = subprocess.check_output(['nextflow','-version'], text=True,env=env)
+        try:
+            nf_version = subprocess.check_output(['nextflow','-version'], text=True,env=env,stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as exc:
+            detail = exc.output or str(exc)
+            (log_dir/'startup.log').write_text(detail)
+            (log_dir/'status.json').write_text(json.dumps({'stage':'nextflow_startup','exit_code':exc.returncode},indent=2)+'\n')
+            raise ValueError('Nextflow could not start. Load Java 17+ and Nextflow 25.10.7; '
+                             'see docs/setup.md#launcher-and-compute-tools. Details: '+str(log_dir/'startup.log')) from exc
         if not re.search(r'\bversion\s+25\.10\.7\b',nf_version):
             raise ValueError('Expected Nextflow 25.10.7; load/install the pinned version before running')
         (log_dir / 'provenance.json').write_text(json.dumps({'argv': command, 'code_sha256': hashes,

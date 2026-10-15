@@ -10,13 +10,33 @@ Existing BAM/reference locations can be used through absolute YAML/TSV overrides
 
 ## Launcher and Compute Tools
 
-Use Linux, Python 3.11, Java 17+ and Nextflow 25.10.7 through its [official launcher](https://www.nextflow.io/docs/latest/install.html) or site modules:
+Use Linux, Python 3.11, Java 17+ and Nextflow 25.10.7. Set up the Python environment:
 
 ~~~bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 ~~~
+
+Java, Nextflow and samtools are separate command-line tools. On an HPC, load the available modules; for example:
+
+~~~bash
+module load java/20.0.1 samtools/1.20 bcftools/1.20
+~~~
+
+Module names vary by site. Use `module avail java samtools bcftools nextflow` to see yours. Activate the Python environment and load your modules in each new session before running tests or submitting jobs.
+
+If Nextflow is not supplied by a module, install the pinned [official launcher](https://github.com/nextflow-io/nextflow/releases/tag/v25.10.7) inside the Python environment, from the repository root:
+
+~~~bash
+curl -fL --retry 3 https://github.com/nextflow-io/nextflow/releases/download/v25.10.7/nextflow \
+  -o .venv/bin/nextflow
+chmod +x .venv/bin/nextflow
+export NXF_VER=25.10.7
+nextflow -version
+~~~
+
+Activating `.venv` makes this launcher available on PATH. Its first start downloads the Nextflow runtime, so initialize it with internet access. [Nextflow installation guide](https://www.nextflow.io/docs/latest/install.html).
 
 Compute tasks use host `python3`, `samtools`, `bcftools` and Apptainer/Singularity. Reference indexing also uses `bwa`. BRASS uses `jq`, `patch` and standard Linux utilities. When supplying Manta region BEDs, also provide `bgzip` and `tabix`.
 
